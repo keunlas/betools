@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.21)
-project(CMakeProjectTemplate VERSION 1.0.0)
+project(betools VERSION 1.0.0)
 
 include(cmake/build_option.cmake)
 include(cmake/compile_setting.cmake)
 
-# add_subdirectory(src)
+add_subdirectory(src)
 
 if(MY_BUILD_TEST)
   add_subdirectory(test)

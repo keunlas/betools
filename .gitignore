@@ -24,6 +24,7 @@
 !/test/**/*
 !/example/**/*
 
-# !/include/**/*.h
-# !/include/**/*.hpp
-# !/src/**/*.cpp
+!/include/**/*.h
+!/include/**/*.hpp
+!/src/**/*.c
+!/src/**/*.cpp

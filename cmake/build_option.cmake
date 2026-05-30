@@ -2,6 +2,8 @@
 # 构建时配置选项
 #
 
+#[[
+
 # 设置库的编译类型，默认为动态库
 set(MY_LIBRARY_TYPE "SHARED" CACHE STRING "STATIC | SHARED")
 
@@ -19,3 +21,4 @@ option(MY_BUILD_EXAMPLE "是否编译示例代码" ON)
 message(STATUS "MY_LIBRARY_TYPE: ${MY_LIBRARY_TYPE}")
 message(STATUS "MY_POSITION_INDEPENDENT_CODE: ${MY_POSITION_INDEPENDENT_CODE}")
 
+]]
