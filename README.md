@@ -45,7 +45,10 @@ target_link_libraries(my_app PRIVATE betools::betools)
 
 ## API 文档
 
-项目文档由 Doxygen 生成，使用浏览器打开项目下的 `docs/html/index.html` 即可阅读文档。
+项目文档由 Doxygen 生成。
+
+- **在线文档**：https://github.com/keunlas/betools
+- **本地文档**：使用浏览器打开项目下的 `docs/html/index.html` 即可阅读文档。
 
 各工具的详细 API 说明见 [docs/](docs/) 目录下的 Markdown 文件。
 
