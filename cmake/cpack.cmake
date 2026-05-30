@@ -2,6 +2,8 @@
 # CPack 配置选项
 #
 
+#[[
+
 # 打包名称
 set(CPACK_PACKAGE_NAME ${CMAKE_PROJECT_NAME})
 set(CPACK_PACKAGE_VERSION ${CMAKE_PROJECT_VERSION})
@@ -19,3 +21,5 @@ endif()
 
 # 引入 CPack 工具
 include(CPack)
+
+]]

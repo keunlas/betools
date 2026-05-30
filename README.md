@@ -20,6 +20,11 @@ FetchContent_Declare(betools
     GIT_REPOSITORY https://github.com/keunlas/betools.git
     GIT_TAG main
 )
+
+# 关闭非必要的测试/示例编译（在 MakeAvailable 之前设置）
+set(betools_BUILD_TEST OFF CACHE BOOL "" FORCE)
+set(betools_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(betools)
 
 target_link_libraries(my_app PRIVATE betools::betools)
