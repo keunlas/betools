@@ -1,4 +1,4 @@
-# Base 编解码 {#base}
+# Base 编解码
 
 `betools/base.hpp` 是 betools 项目中提供 **Base62** 和 **Base64** 编解码功能的纯头文件。该文件是 self-contained 的，不依赖任何第三方库，可直接复制到任意项目中使用。
 
