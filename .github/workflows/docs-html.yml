@@ -36,10 +36,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y graphviz
-          # 从 GitHub Releases 下载与本地一致的 Doxygen 1.16.1 预编译二进制
           wget -q https://github.com/doxygen/doxygen/releases/download/Release_1_16_1/doxygen-1.16.1.linux.bin.tar.gz
           tar xf doxygen-1.16.1.linux.bin.tar.gz
           echo "$PWD/doxygen-1.16.1/bin" >> $GITHUB_PATH
+
+      - name: Remove doxygen-awesome theme config for online build
+        run: |
+          sed -i '/^HTML_COLORSTYLE\s*=/d' Doxyfile
+          sed -i '\#deps/doxygen-awesome/#d' Doxyfile
 
       - name: Generate Doxygen documentation
         run: doxygen Doxyfile
