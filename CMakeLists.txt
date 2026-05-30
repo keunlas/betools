@@ -6,11 +6,11 @@ include(cmake/compile_setting.cmake)
 
 add_subdirectory(src)
 
-if(MY_BUILD_TEST)
+if(${PROJECT_NAME}_BUILD_TEST)
   add_subdirectory(test)
 endif()
 
-if(MY_BUILD_EXAMPLE)
+if(${PROJECT_NAME}_BUILD_EXAMPLE)
   add_subdirectory(example)
 endif()
 
