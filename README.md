@@ -43,12 +43,17 @@ target_link_libraries(my_app PRIVATE betools::betools)
 
 - 暂无第三方库依赖
 
+### 可选依赖
+
+- [Doxygen](https://www.doxygen.nl/) — 生成 HTML 文档
+- [Graphviz](https://graphviz.org/) — 渲染文档中的类图与调用图
+
 ## API 文档
 
-项目文档由 Doxygen 生成。
+项目文档由 Doxygen 自动生成，每次推送到 `main` 分支后通过 GitHub Actions 构建并部署到 GitHub Pages。
 
-- **在线文档**：https://github.com/keunlas/betools
-- **本地文档**：使用浏览器打开项目下的 `docs/html/index.html` 即可阅读文档。
+- **在线文档**：https://keunlas.github.io/betools/
+- **本地生成**：在项目根目录执行 `doxygen Doxyfile`，然后用浏览器打开 `docs/html/index.html` 即可阅读。
 
 各工具的详细 API 说明见 [docs/](docs/) 目录下的 Markdown 文件。
 
