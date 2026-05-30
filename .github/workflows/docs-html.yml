@@ -40,11 +40,6 @@ jobs:
           tar xf doxygen-1.16.1.linux.bin.tar.gz
           echo "$PWD/doxygen-1.16.1/bin" >> $GITHUB_PATH
 
-      - name: Remove doxygen-awesome theme config for online build
-        run: |
-          sed -i '/^HTML_COLORSTYLE\s*=/d' Doxyfile
-          sed -i '\#deps/doxygen-awesome/#d' Doxyfile
-
       - name: Generate Doxygen documentation
         run: doxygen Doxyfile
 
