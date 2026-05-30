@@ -15,4 +15,5 @@ endfunction()
 # add_test_executable(my_test1 my_test1.cpp my_test1a.cpp code.cpp)
 # add_ctest_executable(my_ctest2 my_ctest2.cpp my_test2a.cpp code.cpp)
 
-
+add_ctest_executable(test_base62 test_base62.cpp)
+target_include_directories(test_base62 PRIVATE ${PROJECT_SOURCE_DIR}/include)
