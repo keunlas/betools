@@ -1,8 +1,7 @@
 #include <cassert>
 #include <cstdlib>
-#include <iostream>
-#include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "betools/base.hpp"
@@ -89,8 +88,6 @@ static std::vector<std::pair<std::string, std::string>> test_cases{
      "2RpJuJVo0n2hIeglTFXbhp"}  //
 };
 
-#if 1
-
 int main() {
   for (auto&& test_case : test_cases) {
     using betools::base::base62::decode;
@@ -102,19 +99,3 @@ int main() {
   }
   return EXIT_SUCCESS;
 }
-
-#else
-
-int main() {
-  for (auto&& test_case : test_cases) {
-    using kotucode::base::base62::decode;
-    using kotucode::base::base62::encode;
-    std::cout << "[" << test_case.first;
-    std::cout << "] -> [";
-    std::cout << encode(test_case.first) << "]";
-    std::cout << std::endl;
-  }
-  return EXIT_SUCCESS;
-}
-
-#endif
