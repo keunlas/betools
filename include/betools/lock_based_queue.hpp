@@ -39,9 +39,24 @@ class LockBasedQueue {
    */
   LockBasedQueue(size_t capacity) : capacity_(capacity) {}
 
+  /**
+   * @brief 禁止拷贝构造
+   */
   LockBasedQueue(const LockBasedQueue&) = delete;
+
+  /**
+   * @brief 禁止拷贝赋值
+   */
   LockBasedQueue& operator=(const LockBasedQueue&) = delete;
+
+  /**
+   * @brief 禁止移动构造
+   */
   LockBasedQueue(LockBasedQueue&&) = delete;
+
+  /**
+   * @brief 禁止移动赋值
+   */
   LockBasedQueue& operator=(LockBasedQueue&&) = delete;
 
   /**
@@ -51,7 +66,7 @@ class LockBasedQueue {
    * @param item 入队元素
    */
   template <typename U>
-  void enqueue(U&& item) {
+  void Enqueue(U&& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock, [this] { return !full(); });
     queue_.push(std::forward<U>(item));
@@ -68,7 +83,7 @@ class LockBasedQueue {
    * @return false 队列已满，入队失败
    */
   template <typename U>
-  bool try_enqueue(U&& item) {
+  bool TryEnqueue(U&& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (full()) return false;
     queue_.push(std::forward<U>(item));
@@ -89,8 +104,8 @@ class LockBasedQueue {
    * @return false 超时，入队失败
    */
   template <typename Rep, typename Period, typename U>
-  bool try_enqueue_for(const std::chrono::duration<Rep, Period>& timeout,
-                       U&& item) {
+  bool TryEnqueueFor(const std::chrono::duration<Rep, Period>& timeout,
+                     U&& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!not_full_.wait_for(lock, timeout, [this] { return !full(); })) {
       return false;
@@ -108,7 +123,7 @@ class LockBasedQueue {
    * @param args 转发给元素构造函数的参数
    */
   template <typename... Args>
-  void emplace(Args&&... args) {
+  void Emplace(Args&&... args) {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock, [this] { return !full(); });
     queue_.emplace(std::forward<Args>(args)...);
@@ -125,7 +140,7 @@ class LockBasedQueue {
    * @return false 队列已满，入队失败
    */
   template <typename... Args>
-  bool try_emplace(Args&&... args) {
+  bool TryEmplace(Args&&... args) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (full()) return false;
     queue_.emplace(std::forward<Args>(args)...);
@@ -146,8 +161,8 @@ class LockBasedQueue {
    * @return false 超时，入队失败
    */
   template <typename Rep, typename Period, typename... Args>
-  bool try_emplace_for(const std::chrono::duration<Rep, Period>& timeout,
-                       Args&&... args) {
+  bool TryEmplaceFor(const std::chrono::duration<Rep, Period>& timeout,
+                     Args&&... args) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!not_full_.wait_for(lock, timeout, [this] { return !full(); })) {
       return false;
@@ -166,7 +181,7 @@ class LockBasedQueue {
    */
   template <std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
-  void enqueue_range(R&& range) {
+  void EnqueueRange(R&& range) {
     auto sz = std::ranges::size(range);
     if (sz == 0) return;
     std::unique_lock<std::mutex> lock(mutex_);
@@ -191,7 +206,7 @@ class LockBasedQueue {
    */
   template <std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
-  bool try_enqueue_range(R&& range) {
+  bool TryEnqueueRange(R&& range) {
     auto sz = std::ranges::size(range);
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
@@ -219,8 +234,8 @@ class LockBasedQueue {
    */
   template <typename Rep, typename Period, std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
-  bool try_enqueue_range_for(const std::chrono::duration<Rep, Period>& timeout,
-                             R&& range) {
+  bool TryEnqueueRangeFor(const std::chrono::duration<Rep, Period>& timeout,
+                          R&& range) {
     auto sz = std::ranges::size(range);
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
@@ -244,7 +259,7 @@ class LockBasedQueue {
    *
    * @param item [out] 出队元素，通过移动赋值写入
    */
-  void dequeue(T& item) {
+  void Dequeue(T& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     not_empty_.wait(lock, [this] { return !empty(); });
     item = std::move(queue_.front());
@@ -260,7 +275,7 @@ class LockBasedQueue {
    * @return true 出队成功
    * @return false 队列为空，出队失败
    */
-  bool try_dequeue(T& item) {
+  bool TryDequeue(T& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (empty()) return false;
     item = std::move(queue_.front());
@@ -281,8 +296,8 @@ class LockBasedQueue {
    * @return false 超时，出队失败
    */
   template <typename Rep, typename Period>
-  bool try_dequeue_for(const std::chrono::duration<Rep, Period>& timeout,
-                       T& item) {
+  bool TryDequeueFor(const std::chrono::duration<Rep, Period>& timeout,
+                     T& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!not_empty_.wait_for(lock, timeout, [this] { return !empty(); })) {
       return false;
