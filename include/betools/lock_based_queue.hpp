@@ -187,7 +187,7 @@ class LockBasedQueue {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock,
                    [this, sz] { return capacity_ - queue_.size() >= sz; });
-    queue_.append_range(std::forward<R>(range));
+    append_range_impl(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -211,7 +211,7 @@ class LockBasedQueue {
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
     if (capacity_ - queue_.size() < sz) return false;
-    queue_.append_range(std::forward<R>(range));
+    append_range_impl(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -244,7 +244,7 @@ class LockBasedQueue {
         })) {
       return false;
     }
-    queue_.append_range(std::forward<R>(range));
+    append_range_impl(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -345,6 +345,21 @@ class LockBasedQueue {
   inline bool empty() { return queue_.empty(); }
   inline bool full() { return queue_.size() >= capacity_; }
   inline size_t size() { return queue_.size(); }
+
+  /**
+   * @brief 向底层容器批量追加元素，
+   * 优先使用 C++23 的 deque::append_range（标准接口），
+   * 不可用时回退到 ranges::copy + back_inserter（兼容旧 libstdc++）
+   */
+  template <typename R>
+  void append_range_impl(R&& range) {
+    if constexpr (requires { queue_.append_range(std::forward<R>(range)); }) {
+      queue_.append_range(std::forward<R>(range));
+    } else {
+      std::ranges::copy(std::forward<R>(range),
+                        std::back_inserter(queue_));
+    }
+  }
 
  private:
   size_t capacity_;
