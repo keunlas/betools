@@ -146,9 +146,9 @@ class ThreadPool {
    */
   template <typename F, typename... Args>
   auto SubmitTask(F&& func, Args&&... args)
-      -> std::future<typename std::result_of<F(Args...)>::type> {
+      -> std::future<std::invoke_result_t<F, Args...>> {
     // 函数 func(args...) 的返回值类型
-    using return_type = typename std::result_of<F(Args...)>::type;
+    using return_type = std::invoke_result_t<F, Args...>;
     // 线程池停止后不再添加任何任务
     if (stop_) return std::future<return_type>();
     // 从 std::bind 封装 std::packaged_task 对象
