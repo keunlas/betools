@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <mutex>
 #include <queue>
+#include <ranges>
 
 namespace betools {
 
@@ -154,6 +155,87 @@ class LockBasedQueue {
     queue_.emplace(std::forward<Args>(args)...);
     lock.unlock();
     not_empty_.notify_one();
+    return true;
+  }
+
+  /**
+   * @brief 阻塞批量入队，队列空间不足则一直等待，要么全部入队要么全不入队
+   *
+   * @tparam R 范围类型（须满足 std::ranges::sized_range）
+   * @param range 待入队的范围
+   */
+  template <std::ranges::sized_range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+  void enqueue_range(R&& range) {
+    auto sz = std::ranges::size(range);
+    if (sz == 0) return;
+    std::unique_lock<std::mutex> lock(mutex_);
+    not_full_.wait(lock,
+                   [this, sz] { return capacity_ - queue_.size() >= sz; });
+    queue_.push_range(std::forward<R>(range));
+    lock.unlock();
+    if (sz > 1) {
+      not_empty_.notify_all();
+    } else {
+      not_empty_.notify_one();
+    }
+  }
+
+  /**
+   * @brief 尝试批量入队（非阻塞），空间不足立即返回 false
+   *
+   * @tparam R 范围类型（须满足 std::ranges::sized_range）
+   * @param range 待入队的范围
+   * @return true 全部入队成功
+   * @return false 空间不足，一个都不入队
+   */
+  template <std::ranges::sized_range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+  bool try_enqueue_range(R&& range) {
+    auto sz = std::ranges::size(range);
+    if (sz == 0) return true;
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (capacity_ - queue_.size() < sz) return false;
+    queue_.push_range(std::forward<R>(range));
+    lock.unlock();
+    if (sz > 1) {
+      not_empty_.notify_all();
+    } else {
+      not_empty_.notify_one();
+    }
+    return true;
+  }
+
+  /**
+   * @brief 限时等待批量入队，超时返回 false，要么全部入队要么全不入队
+   *
+   * @tparam Rep std::chrono::duration 的数值类型
+   * @tparam Period std::chrono::duration 的单位
+   * @tparam R 范围类型（须满足 std::ranges::sized_range）
+   * @param timeout 最长等待时间
+   * @param range 待入队的范围
+   * @return true 全部入队成功
+   * @return false 超时，一个都不入队
+   */
+  template <typename Rep, typename Period, std::ranges::sized_range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+  bool try_enqueue_range_for(const std::chrono::duration<Rep, Period>& timeout,
+                             R&& range) {
+    auto sz = std::ranges::size(range);
+    if (sz == 0) return true;
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!not_full_.wait_for(lock, timeout, [this, sz] {
+          return capacity_ - queue_.size() >= sz;
+        })) {
+      return false;
+    }
+    queue_.push_range(std::forward<R>(range));
+    lock.unlock();
+    if (sz > 1) {
+      not_empty_.notify_all();
+    } else {
+      not_empty_.notify_one();
+    }
     return true;
   }
 

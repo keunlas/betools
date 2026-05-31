@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -156,6 +157,143 @@ static void test_try_emplace_for() {
   consumer.join();
 }
 
+// ========== enqueue_range (阻塞批量入队) ==========
+static void test_enqueue_range() {
+  betools::LockBasedQueue<int> q(10);
+
+  // vector 批量入队
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  q.enqueue_range(v);
+  assert(q.QueueSize() == 5);
+
+  // 出队验证顺序
+  int out;
+  q.dequeue(out);
+  assert(out == 1);
+  q.dequeue(out);
+  assert(out == 2);
+
+  // 右值 range (临时 vector)
+  q.enqueue_range(std::vector<int>{10, 20, 30});
+  assert(q.QueueSize() == 6);
+
+  // array 批量入队
+  std::array<int, 3> arr = {100, 200, 300};
+  q.enqueue_range(arr);
+  assert(q.QueueSize() == 9);
+
+  q.dequeue(out);
+  assert(out == 3);
+}
+
+// ========== try_enqueue_range (非阻塞批量入队) ==========
+static void test_try_enqueue_range() {
+  betools::LockBasedQueue<int> q(5);
+
+  // 全部入队成功
+  assert(q.try_enqueue_range(std::vector<int>{1, 2, 3}));
+  assert(q.QueueSize() == 3);
+
+  // 空间不足，一个都不入队
+  assert(!q.try_enqueue_range(std::vector<int>{4, 5, 6}));
+  assert(q.QueueSize() == 3);  // 大小不变
+
+  // 刚好填满
+  assert(q.try_enqueue_range(std::vector<int>{7, 8}));
+  assert(q.QueueFull());
+
+  // 空 range 总是成功
+  assert(q.try_enqueue_range(std::vector<int>{}));
+
+  // 验证内容
+  int out;
+  q.dequeue(out);
+  assert(out == 1);
+  q.dequeue(out);
+  assert(out == 2);
+  q.dequeue(out);
+  assert(out == 3);
+  q.dequeue(out);
+  assert(out == 7);
+  q.dequeue(out);
+  assert(out == 8);
+}
+
+// ========== try_enqueue_range_for (限时等待批量入队) ==========
+static void test_try_enqueue_range_for() {
+  betools::LockBasedQueue<int> q(5);
+  // 先放入 3 个，剩余 2 个空位
+  q.enqueue(1);
+  q.enqueue(2);
+  q.enqueue(3);
+
+  // 空间不足(需要4个)，超时返回 false
+  assert(!q.try_enqueue_range_for(10ms, std::vector<int>{4, 5, 6, 7}));
+
+  // 另一个线程消费后腾出空间
+  std::thread consumer([&q] {
+    std::this_thread::sleep_for(20ms);
+    int out;
+    q.dequeue(out);  // 腾出 1 个 → 剩余 3 个空位，仍不够 4 个
+    q.dequeue(out);  // 再腾 1 个 → 剩余 4 个空位，够了
+  });
+
+  // 等待足够空间
+  assert(q.try_enqueue_range_for(200ms, std::vector<int>{4, 5, 6, 7}));
+  consumer.join();
+
+  // 验证内容：队列中应该是 [3, 4, 5, 6, 7] (1、2 被消费)
+  int out;
+  q.dequeue(out);
+  assert(out == 3);
+  q.dequeue(out);
+  assert(out == 4);
+  q.dequeue(out);
+  assert(out == 5);
+  q.dequeue(out);
+  assert(out == 6);
+  q.dequeue(out);
+  assert(out == 7);
+  assert(q.QueueEmpty());
+}
+
+// ========== 多线程批量入队 ==========
+static void test_multi_threaded_range() {
+  betools::LockBasedQueue<int> q(100);
+  constexpr int kGroups = 10;
+  constexpr int kGroupSize = 20;
+
+  std::atomic<int> sum{0};
+
+  auto producer = [&q] {
+    for (int i = 0; i < kGroups; ++i) {
+      std::vector<int> group;
+      for (int j = 0; j < kGroupSize; ++j) {
+        group.push_back(i * kGroupSize + j);
+      }
+      q.enqueue_range(std::move(group));
+    }
+  };
+
+  auto consumer = [&q, &sum] {
+    for (int i = 0; i < kGroups * kGroupSize; ++i) {
+      int out;
+      q.dequeue(out);
+      sum.fetch_add(out, std::memory_order_relaxed);
+    }
+  };
+
+  std::thread pt(producer);
+  std::thread ct(consumer);
+  pt.join();
+  ct.join();
+
+  // 验证总和：0 + 1 + ... + (kGroups*kGroupSize - 1)
+  int expected = (kGroups * kGroupSize - 1) * (kGroups * kGroupSize) / 2;
+  assert(sum.load() == expected);
+  assert(q.QueueEmpty());
+}
+
 // ========== try_dequeue (非阻塞出队) ==========
 static void test_try_dequeue() {
   betools::LockBasedQueue<int> q(2);
@@ -278,6 +416,10 @@ int main() {
   test_emplace();
   test_try_emplace();
   test_try_emplace_for();
+  test_enqueue_range();
+  test_try_enqueue_range();
+  test_try_enqueue_range_for();
+  test_multi_threaded_range();
   test_try_dequeue();
   test_try_dequeue_for();
   test_multi_threaded();
