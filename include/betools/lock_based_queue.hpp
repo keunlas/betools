@@ -356,8 +356,7 @@ class LockBasedQueue {
     if constexpr (requires { queue_.append_range(std::forward<R>(range)); }) {
       queue_.append_range(std::forward<R>(range));
     } else {
-      std::ranges::copy(std::forward<R>(range),
-                        std::back_inserter(queue_));
+      std::ranges::copy(std::forward<R>(range), std::back_inserter(queue_));
     }
   }
 
