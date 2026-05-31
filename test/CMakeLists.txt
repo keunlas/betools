@@ -18,6 +18,9 @@ endfunction()
 add_ctest_executable(test_base62 test_base62.cpp)
 target_link_libraries(test_base62 PRIVATE betools::betools)
 
+add_ctest_executable(test_base64 test_base64.cpp)
+target_link_libraries(test_base64 PRIVATE betools::betools)
+
 add_ctest_executable(test_lock_based_queue test_lock_based_queue.cpp)
 target_link_libraries(test_lock_based_queue PRIVATE betools::betools)
 

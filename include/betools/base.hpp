@@ -385,7 +385,7 @@ inline std::string decode(const std::string& base_string,
 inline std::string pad(const std::string& base_string,
                        const std::string& fill) {
   std::string padding;
-  for (std::size_t i = 0; i < base_string.size() % 4; ++i) {
+  for (std::size_t i = 0; i < (4 - base_string.size() % 4) % 4; ++i) {
     padding += fill;
   }
   return base_string + padding;
