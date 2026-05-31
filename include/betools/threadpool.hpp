@@ -19,12 +19,6 @@
  *
  */
 
-/**
- * [TODO]
- * 1. 构造：线程池拥有线程数和内部队列大小
- * 2. 内部队列应当存储 packaged_task
- */
-
 #include <atomic>
 #include <chrono>
 #include <functional>

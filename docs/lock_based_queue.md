@@ -26,7 +26,7 @@ LockBasedQueue(size_t capacity);
 
 构造一个最大容量为 `capacity` 的阻塞队列。
 
-- __参数__：`capacity` — 队列最大容量，必须大于 0。
+- __参数__ : `capacity` — 队列最大容量，必须大于 0。
 
 ### QueueEmpty
 
@@ -36,7 +36,7 @@ bool QueueEmpty();
 
 判断队列是否为空。
 
-- __返回__：`true` — 队列为空；`false` — 队列非空。
+- __返回__ : `true` — 队列为空；`false` — 队列非空。
 
 ### QueueFull
 
@@ -46,7 +46,7 @@ bool QueueFull();
 
 判断队列是否已满。
 
-- __返回__：`true` — 队列已满；`false` — 队列未满。
+- __返回__ : `true` — 队列已满；`false` — 队列未满。
 
 ### QueueSize
 
@@ -56,7 +56,7 @@ size_t QueueSize();
 
 获取队列当前元素个数。
 
-- __返回__：队列中元素的数量。
+- __返回__ : 队列中元素的数量。
 
 ---
 
@@ -73,7 +73,7 @@ void Enqueue(U&& item);
 
 阻塞入队，队列满则一直等待直到有空间。放入一个元素后，通知一个正在等待的消费者。
 
-- __参数__：`item` — 入队元素（支持左值拷贝或右值移动）。
+- __参数__ : `item` — 入队元素（支持左值拷贝或右值移动）。
 
 ### TryEnqueue
 
@@ -84,8 +84,8 @@ bool TryEnqueue(U&& item);
 
 非阻塞尝试入队，立即返回。
 
-- __参数__：`item` — 入队元素。
-- __返回__：`true` — 入队成功；`false` — 队列已满，未入队。
+- __参数__ : `item` — 入队元素。
+- __返回__ : `true` — 入队成功；`false` — 队列已满，未入队。
 
 ### TryEnqueueFor
 
@@ -97,8 +97,8 @@ bool TryEnqueueFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待入队，超时返回失败。
 
-- __参数__：`timeout` — 最长等待时间；`item` — 入队元素。
-- __返回__：`true` — 入队成功；`false` — 超时，未入队。
+- __参数__ : `timeout` — 最长等待时间；`item` — 入队元素。
+- __返回__ : `true` — 入队成功；`false` — 超时，未入队。
 
 ### 使用示例
 
@@ -135,7 +135,7 @@ void Emplace(Args&&... args);
 
 阻塞原地构造入队，队列满则一直等待直到有空间。
 
-- __参数__：`args` — 转发给 `T` 构造函数的参数。
+- __参数__ : `args` — 转发给 `T` 构造函数的参数。
 
 ### TryEmplace
 
@@ -146,8 +146,8 @@ bool TryEmplace(Args&&... args);
 
 非阻塞尝试原地构造入队。
 
-- __参数__：`args` — 转发给 `T` 构造函数的参数。
-- __返回__：`true` — 入队成功；`false` — 队列已满，未入队。
+- __参数__ : `args` — 转发给 `T` 构造函数的参数。
+- __返回__ : `true` — 入队成功；`false` — 队列已满，未入队。
 
 ### TryEmplaceFor
 
@@ -159,8 +159,8 @@ bool TryEmplaceFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待原地构造入队，超时返回失败。
 
-- __参数__：`timeout` — 最长等待时间；`args` — 转发给 `T` 构造函数的参数。
-- __返回__：`true` — 入队成功；`false` — 超时，未入队。
+- __参数__ : `timeout` — 最长等待时间；`args` — 转发给 `T` 构造函数的参数。
+- __返回__ : `true` — 入队成功；`false` — 超时，未入队。
 
 ### 使用示例
 
@@ -190,8 +190,8 @@ void EnqueueRange(R&& range);
 
 阻塞批量入队，队列剩余空间不足则一直等待，直到有足够空间容纳整个范围。
 
-- __参数__：`range` — 待入队的范围（须满足 `sized_range`）。
-- __注意__：若 `range` 元素数量 > 1，则通知所有等待的消费者（`notify_all`），否则只通知一个。
+- __参数__ : `range` — 待入队的范围（须满足 `sized_range`）。
+- __注意__ : 若 `range` 元素数量 > 1，则通知所有等待的消费者（`notify_all`），否则只通知一个。
 
 ### TryEnqueueRange
 
@@ -203,8 +203,8 @@ bool TryEnqueueRange(R&& range);
 
 非阻塞尝试批量入队，空间不足立即返回 `false`，不放入任何元素。
 
-- __参数__：`range` — 待入队的范围。
-- __返回__：`true` — 全部入队成功；`false` — 空间不足，一个都不入队。
+- __参数__ : `range` — 待入队的范围。
+- __返回__ : `true` — 全部入队成功；`false` — 空间不足，一个都不入队。
 
 ### TryEnqueueRangeFor
 
@@ -217,8 +217,8 @@ bool TryEnqueueRangeFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待批量入队，超时返回失败。
 
-- __参数__：`timeout` — 最长等待时间；`range` — 待入队的范围。
-- __返回__：`true` — 全部入队成功；`false` — 超时，一个都不入队。
+- __参数__ : `timeout` — 最长等待时间；`range` — 待入队的范围。
+- __返回__ : `true` — 全部入队成功；`false` — 超时，一个都不入队。
 
 ### 使用示例
 
@@ -256,7 +256,7 @@ void Dequeue(T& item);
 
 阻塞出队，队列空则一直等待直到有元素。出队后通知一个正在等待的生产者。
 
-- __参数__：`item` — [out] 出队元素，通过移动赋值写入。
+- __参数__ : `item` — [out] 出队元素，通过移动赋值写入。
 
 ### TryDequeue
 
@@ -266,8 +266,8 @@ bool TryDequeue(T& item);
 
 非阻塞尝试出队，立即返回。
 
-- __参数__：`item` — [out] 出队元素。
-- __返回__：`true` — 出队成功；`false` — 队列为空，未出队。
+- __参数__ : `item` — [out] 出队元素。
+- __返回__ : `true` — 出队成功；`false` — 队列为空，未出队。
 
 ### TryDequeueFor
 
@@ -279,8 +279,8 @@ bool TryDequeueFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待出队，超时返回失败。
 
-- __参数__：`timeout` — 最长等待时间；`item` — [out] 出队元素。
-- __返回__：`true` — 出队成功；`false` — 超时，未出队。
+- __参数__ : `timeout` — 最长等待时间；`item` — [out] 出队元素。
+- __返回__ : `true` — 出队成功；`false` — 超时，未出队。
 
 ### 使用示例
 
