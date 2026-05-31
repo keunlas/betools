@@ -19,18 +19,6 @@
  *
  */
 
-/**
- * [TODO]
- * 1. 构造：模板参数元素类型，队列大小限制
- * 2. 入队：阻塞，直到入队成功为止
- * 3. 尝试入队：非阻塞，入队成功返回 true，否则 false
- * 4. 等待入队：阻塞一段时间，入队成功返回 true，否则 false
- * 5. 出队：阻塞，直到出队成功为止
- * 6. 尝试出队：非阻塞，出队成功返回 true, 否则 false
- * 7. 等待出队：阻塞一段时间，出队成功返回 true，否则 false
- * 8. empty, size, full
- */
-
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
