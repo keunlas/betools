@@ -38,6 +38,11 @@ class LockBasedQueue {
    */
   LockBasedQueue(size_t capacity) : capacity_(capacity) {}
 
+  LockBasedQueue(const LockBasedQueue&) = delete;
+  LockBasedQueue& operator=(const LockBasedQueue&) = delete;
+  LockBasedQueue(LockBasedQueue&&) = delete;
+  LockBasedQueue& operator=(LockBasedQueue&&) = delete;
+
   /**
    * @brief 阻塞入队，队列满则一直等待直到有空间
    *
