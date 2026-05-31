@@ -23,8 +23,8 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <mutex>
-#include <queue>
 #include <ranges>
 
 namespace betools {
@@ -69,7 +69,7 @@ class LockBasedQueue {
   void Enqueue(U&& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock, [this] { return !full(); });
-    queue_.push(std::forward<U>(item));
+    queue_.push_back(std::forward<U>(item));
     lock.unlock();
     not_empty_.notify_one();
   }
@@ -86,7 +86,7 @@ class LockBasedQueue {
   bool TryEnqueue(U&& item) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (full()) return false;
-    queue_.push(std::forward<U>(item));
+    queue_.push_back(std::forward<U>(item));
     lock.unlock();
     not_empty_.notify_one();
     return true;
@@ -110,7 +110,7 @@ class LockBasedQueue {
     if (!not_full_.wait_for(lock, timeout, [this] { return !full(); })) {
       return false;
     }
-    queue_.push(std::forward<U>(item));
+    queue_.push_back(std::forward<U>(item));
     lock.unlock();
     not_empty_.notify_one();
     return true;
@@ -126,7 +126,7 @@ class LockBasedQueue {
   void Emplace(Args&&... args) {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock, [this] { return !full(); });
-    queue_.emplace(std::forward<Args>(args)...);
+    queue_.emplace_back(std::forward<Args>(args)...);
     lock.unlock();
     not_empty_.notify_one();
   }
@@ -143,7 +143,7 @@ class LockBasedQueue {
   bool TryEmplace(Args&&... args) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (full()) return false;
-    queue_.emplace(std::forward<Args>(args)...);
+    queue_.emplace_back(std::forward<Args>(args)...);
     lock.unlock();
     not_empty_.notify_one();
     return true;
@@ -167,7 +167,7 @@ class LockBasedQueue {
     if (!not_full_.wait_for(lock, timeout, [this] { return !full(); })) {
       return false;
     }
-    queue_.emplace(std::forward<Args>(args)...);
+    queue_.emplace_back(std::forward<Args>(args)...);
     lock.unlock();
     not_empty_.notify_one();
     return true;
@@ -187,7 +187,7 @@ class LockBasedQueue {
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock,
                    [this, sz] { return capacity_ - queue_.size() >= sz; });
-    queue_.push_range(std::forward<R>(range));
+    queue_.append_range(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -211,7 +211,7 @@ class LockBasedQueue {
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
     if (capacity_ - queue_.size() < sz) return false;
-    queue_.push_range(std::forward<R>(range));
+    queue_.append_range(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -244,7 +244,7 @@ class LockBasedQueue {
         })) {
       return false;
     }
-    queue_.push_range(std::forward<R>(range));
+    queue_.append_range(std::forward<R>(range));
     lock.unlock();
     if (sz > 1) {
       not_empty_.notify_all();
@@ -263,7 +263,7 @@ class LockBasedQueue {
     std::unique_lock<std::mutex> lock(mutex_);
     not_empty_.wait(lock, [this] { return !empty(); });
     item = std::move(queue_.front());
-    queue_.pop();
+    queue_.pop_front();
     lock.unlock();
     not_full_.notify_one();
   }
@@ -279,7 +279,7 @@ class LockBasedQueue {
     std::unique_lock<std::mutex> lock(mutex_);
     if (empty()) return false;
     item = std::move(queue_.front());
-    queue_.pop();
+    queue_.pop_front();
     lock.unlock();
     not_full_.notify_one();
     return true;
@@ -303,7 +303,7 @@ class LockBasedQueue {
       return false;
     }
     item = std::move(queue_.front());
-    queue_.pop();
+    queue_.pop_front();
     lock.unlock();
     not_full_.notify_one();
     return true;
@@ -348,7 +348,7 @@ class LockBasedQueue {
 
  private:
   size_t capacity_;
-  std::queue<T> queue_{};
+  std::deque<T> queue_{};
   std::mutex mutex_{};
   std::condition_variable not_full_{};
   std::condition_variable not_empty_{};

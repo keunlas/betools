@@ -178,7 +178,7 @@ q.Emplace(2, "two");
 
 ## 批量入队
 
-批量入队接口利用 `std::queue::push_range` 一次性将整个范围入队。遵循 **全有或全无（all-or-nothing）** 原则——要么所有元素全部入队，要么都不入队。只要范围满足 `std::ranges::sized_range` 约束（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
+批量入队接口使用 `std::ranges::copy` 搭配 `std::back_inserter` 一次性将整个范围入队到内部的 `std::deque` 容器中。遵循 **全有或全无（all-or-nothing）** 原则——要么所有元素全部入队，要么都不入队。只要范围满足 `std::ranges::sized_range` 约束（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
 
 ### EnqueueRange
 
