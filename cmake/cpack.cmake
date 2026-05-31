@@ -1,8 +1,7 @@
+if(${PROJECT_NAME}_USE_CPACK)
 #
 # CPack 配置选项
 #
-
-#[[
 
 # 打包名称
 set(CPACK_PACKAGE_NAME ${CMAKE_PROJECT_NAME})
@@ -21,5 +20,4 @@ endif()
 
 # 引入 CPack 工具
 include(CPack)
-
-]]
+endif()
