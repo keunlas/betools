@@ -12,7 +12,7 @@
  * @brief 本头文件包含 Base62 和 Base64 编码相关工具，
  * 这个文件是 header-only 且 self-contained 的，
  * 可以随便复制到任何路径下直接进行使用。
- * @version 1.0.0
+ * @version 1.2.0
  * @date 2026-05-31
  *
  * @copyright Copyright (c) 2026

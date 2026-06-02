@@ -12,7 +12,7 @@
  * @brief 本头文件包含线程池实现，
  * 依赖 betools/lock_based_queue.hpp，
  * 复制时应当一并复制。
- * @version 1.2.0
+ * @version 1.0.0
  * @date 2026-05-31
  *
  * @copyright Copyright (c) 2026
