@@ -17,6 +17,7 @@
  *
  */
 
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -29,10 +30,10 @@ class JsonConfig {
     config_ = nlohmann::json::parse(json_content);
   }
 
-  JsonConfig(const std::string& filepath) {
+  JsonConfig(const std::filesystem::path& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-      throw std::runtime_error("Failed open file: " + filepath);
+      throw std::runtime_error("Failed open file: " + filepath.string());
     }
     config_ = nlohmann::json::parse(file);
   }
