@@ -1,6 +1,6 @@
 # Config 配置解析
 
-`betools/config.hpp` 是 betools 项目中提供 __配置文件解析__ 功能的纯头文件。该文件是 header-only 且 self-contained 的，不依赖任何第三方库，可直接复制到任意项目中使用。
+`betools/config.hpp` 是 betools 项目中提供 **配置文件解析** 功能的纯头文件。该文件是 header-only 且 self-contained 的，不依赖任何第三方库，可直接复制到任意项目中使用。
 
 ## 配置格式
 
@@ -42,8 +42,8 @@ betools::Config cfg_file("app.conf");
 betools::Config cfg_str("server.port=8080\ndebug=true", false);
 ```
 
-- __cfg_file__ : 第一个参数是配置文件路径，默认 `is_from_file = true`
-- __cfg_str__ : 第一个参数是配置内容字符串，需显式传入 `is_from_file = false`
+- **cfg_file** : 第一个参数是配置文件路径，默认 `is_from_file = true`
+- **cfg_str** : 第一个参数是配置内容字符串，需显式传入 `is_from_file = false`
 - 若文件无法打开，构造函数会抛出 `std::runtime_error`
 
 ## GetValue

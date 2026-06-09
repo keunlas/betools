@@ -12,7 +12,7 @@
 | 尝试 | `TryEnqueue` / `TryEmplace` / `TryEnqueueRange` / `TryDequeue` | 条件不满足立即返回 `false` |
 | 限时等待 | `TryEnqueueFor` / `TryEmplaceFor` / `TryEnqueueRangeFor` / `TryDequeueFor` | 等待一段超时时间后返回结果 |
 
-所有接口均保证 __线程安全__。拷贝和移动操作均被显式禁止（`= delete`），请通过指针或引用传递队列实例。
+所有接口均保证 **线程安全**。拷贝和移动操作均被显式禁止（`= delete`），请通过指针或引用传递队列实例。
 
 ---
 
@@ -26,7 +26,7 @@ LockBasedQueue(size_t capacity);
 
 构造一个最大容量为 `capacity` 的阻塞队列。
 
-- __参数__ : `capacity` — 队列最大容量，必须大于 0。
+- **参数** : `capacity` — 队列最大容量，必须大于 0。
 
 ### QueueEmpty
 
@@ -36,7 +36,7 @@ bool QueueEmpty();
 
 判断队列是否为空。
 
-- __返回__ : `true` — 队列为空；`false` — 队列非空。
+- **返回** : `true` — 队列为空；`false` — 队列非空。
 
 ### QueueFull
 
@@ -46,7 +46,7 @@ bool QueueFull();
 
 判断队列是否已满。
 
-- __返回__ : `true` — 队列已满；`false` — 队列未满。
+- **返回** : `true` — 队列已满；`false` — 队列未满。
 
 ### QueueSize
 
@@ -56,13 +56,13 @@ size_t QueueSize();
 
 获取队列当前元素个数。
 
-- __返回__ : 队列中元素的数量。
+- **返回** : 队列中元素的数量。
 
 ---
 
 ## 单元素入队
 
-单元素入队接口使用__完美转发（perfect forwarding）__，可同时支持左值拷贝和右值移动。
+单元素入队接口使用**完美转发（perfect forwarding）**，可同时支持左值拷贝和右值移动。
 
 ### Enqueue
 
@@ -73,7 +73,7 @@ void Enqueue(U&& item);
 
 阻塞入队，队列满则一直等待直到有空间。放入一个元素后，通知一个正在等待的消费者。
 
-- __参数__ : `item` — 入队元素（支持左值拷贝或右值移动）。
+- **参数** : `item` — 入队元素（支持左值拷贝或右值移动）。
 
 ### TryEnqueue
 
@@ -84,8 +84,8 @@ bool TryEnqueue(U&& item);
 
 非阻塞尝试入队，立即返回。
 
-- __参数__ : `item` — 入队元素。
-- __返回__ : `true` — 入队成功；`false` — 队列已满，未入队。
+- **参数** : `item` — 入队元素。
+- **返回** : `true` — 入队成功；`false` — 队列已满，未入队。
 
 ### TryEnqueueFor
 
@@ -97,8 +97,8 @@ bool TryEnqueueFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待入队，超时返回失败。
 
-- __参数__ : `timeout` — 最长等待时间；`item` — 入队元素。
-- __返回__ : `true` — 入队成功；`false` — 超时，未入队。
+- **参数** : `timeout` — 最长等待时间；`item` — 入队元素。
+- **返回** : `true` — 入队成功；`false` — 超时，未入队。
 
 ### 使用示例
 
@@ -135,7 +135,7 @@ void Emplace(Args&&... args);
 
 阻塞原地构造入队，队列满则一直等待直到有空间。
 
-- __参数__ : `args` — 转发给 `T` 构造函数的参数。
+- **参数** : `args` — 转发给 `T` 构造函数的参数。
 
 ### TryEmplace
 
@@ -146,8 +146,8 @@ bool TryEmplace(Args&&... args);
 
 非阻塞尝试原地构造入队。
 
-- __参数__ : `args` — 转发给 `T` 构造函数的参数。
-- __返回__ : `true` — 入队成功；`false` — 队列已满，未入队。
+- **参数** : `args` — 转发给 `T` 构造函数的参数。
+- **返回** : `true` — 入队成功；`false` — 队列已满，未入队。
 
 ### TryEmplaceFor
 
@@ -159,8 +159,8 @@ bool TryEmplaceFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待原地构造入队，超时返回失败。
 
-- __参数__ : `timeout` — 最长等待时间；`args` — 转发给 `T` 构造函数的参数。
-- __返回__ : `true` — 入队成功；`false` — 超时，未入队。
+- **参数** : `timeout` — 最长等待时间；`args` — 转发给 `T` 构造函数的参数。
+- **返回** : `true` — 入队成功；`false` — 超时，未入队。
 
 ### 使用示例
 
@@ -178,7 +178,7 @@ q.Emplace(2, "two");
 
 ## 批量入队
 
-批量入队接口使用 `std::ranges::copy` 搭配 `std::back_inserter` 一次性将整个范围入队到内部的 `std::deque` 容器中。遵循 __全有或全无（all-or-nothing）__ 原则——要么所有元素全部入队，要么都不入队。只要范围满足 `std::ranges::sized_range` 约束（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
+批量入队接口使用 `std::ranges::copy` 搭配 `std::back_inserter` 一次性将整个范围入队到内部的 `std::deque` 容器中。遵循 **全有或全无（all-or-nothing）** 原则——要么所有元素全部入队，要么都不入队。只要范围满足 `std::ranges::sized_range` 约束（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
 
 ### EnqueueRange
 
@@ -190,8 +190,8 @@ void EnqueueRange(R&& range);
 
 阻塞批量入队，队列剩余空间不足则一直等待，直到有足够空间容纳整个范围。
 
-- __参数__ : `range` — 待入队的范围（须满足 `sized_range`）。
-- __注意__ : 若 `range` 元素数量 > 1，则通知所有等待的消费者（`notify_all`），否则只通知一个。
+- **参数** : `range` — 待入队的范围（须满足 `sized_range`）。
+- **注意** : 若 `range` 元素数量 > 1，则通知所有等待的消费者（`notify_all`），否则只通知一个。
 
 ### TryEnqueueRange
 
@@ -203,8 +203,8 @@ bool TryEnqueueRange(R&& range);
 
 非阻塞尝试批量入队，空间不足立即返回 `false`，不放入任何元素。
 
-- __参数__ : `range` — 待入队的范围。
-- __返回__ : `true` — 全部入队成功；`false` — 空间不足，一个都不入队。
+- **参数** : `range` — 待入队的范围。
+- **返回** : `true` — 全部入队成功；`false` — 空间不足，一个都不入队。
 
 ### TryEnqueueRangeFor
 
@@ -217,8 +217,8 @@ bool TryEnqueueRangeFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待批量入队，超时返回失败。
 
-- __参数__ : `timeout` — 最长等待时间；`range` — 待入队的范围。
-- __返回__ : `true` — 全部入队成功；`false` — 超时，一个都不入队。
+- **参数** : `timeout` — 最长等待时间；`range` — 待入队的范围。
+- **返回** : `true` — 全部入队成功；`false` — 超时，一个都不入队。
 
 ### 使用示例
 
@@ -246,7 +246,7 @@ if (!q.TryEnqueueRange(std::vector<int>{1, 2, 3})) {
 
 ## 出队
 
-出队接口采用__传出参数（output parameter）__ 模式，通过引用将元素移动赋值给调用方。
+出队接口采用**传出参数（output parameter）** 模式，通过引用将元素移动赋值给调用方。
 
 ### Dequeue
 
@@ -256,7 +256,7 @@ void Dequeue(T& item);
 
 阻塞出队，队列空则一直等待直到有元素。出队后通知一个正在等待的生产者。
 
-- __参数__ : `item` — [out] 出队元素，通过移动赋值写入。
+- **参数** : `item` — [out] 出队元素，通过移动赋值写入。
 
 ### TryDequeue
 
@@ -266,8 +266,8 @@ bool TryDequeue(T& item);
 
 非阻塞尝试出队，立即返回。
 
-- __参数__ : `item` — [out] 出队元素。
-- __返回__ : `true` — 出队成功；`false` — 队列为空，未出队。
+- **参数** : `item` — [out] 出队元素。
+- **返回** : `true` — 出队成功；`false` — 队列为空，未出队。
 
 ### TryDequeueFor
 
@@ -279,8 +279,8 @@ bool TryDequeueFor(const std::chrono::duration<Rep, Period>& timeout,
 
 限时等待出队，超时返回失败。
 
-- __参数__ : `timeout` — 最长等待时间；`item` — [out] 出队元素。
-- __返回__ : `true` — 出队成功；`false` — 超时，未出队。
+- **参数** : `timeout` — 最长等待时间；`item` — [out] 出队元素。
+- **返回** : `true` — 出队成功；`false` — 超时，未出队。
 
 ### 使用示例
 
