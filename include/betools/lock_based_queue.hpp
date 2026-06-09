@@ -25,7 +25,10 @@
 #include <cstddef>
 #include <deque>
 #include <mutex>
+
+#if __cplusplus >= 202002L
 #include <ranges>
+#endif
 
 namespace betools {
 
@@ -179,10 +182,17 @@ class LockBasedQueue {
    * @tparam R 范围类型（须满足 std::ranges::sized_range）
    * @param range 待入队的范围
    */
+#if __cplusplus >= 202002L
   template <std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
   void EnqueueRange(R&& range) {
     auto sz = std::ranges::size(range);
+#else
+  template <typename R>
+  void EnqueueRange(R&& range) {
+    auto sz =
+        static_cast<size_t>(std::distance(std::begin(range), std::end(range)));
+#endif
     if (sz == 0) return;
     std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock,
@@ -204,10 +214,17 @@ class LockBasedQueue {
    * @return true 全部入队成功
    * @return false 空间不足，一个都不入队
    */
+#if __cplusplus >= 202002L
   template <std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
   bool TryEnqueueRange(R&& range) {
     auto sz = std::ranges::size(range);
+#else
+  template <typename R>
+  bool TryEnqueueRange(R&& range) {
+    auto sz =
+        static_cast<size_t>(std::distance(std::begin(range), std::end(range)));
+#endif
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
     if (capacity_ - queue_.size() < sz) return false;
@@ -232,11 +249,19 @@ class LockBasedQueue {
    * @return true 全部入队成功
    * @return false 超时，一个都不入队
    */
+#if __cplusplus >= 202002L
   template <typename Rep, typename Period, std::ranges::sized_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, T>
   bool TryEnqueueRangeFor(const std::chrono::duration<Rep, Period>& timeout,
                           R&& range) {
     auto sz = std::ranges::size(range);
+#else
+  template <typename Rep, typename Period, typename R>
+  bool TryEnqueueRangeFor(const std::chrono::duration<Rep, Period>& timeout,
+                          R&& range) {
+    auto sz =
+        static_cast<size_t>(std::distance(std::begin(range), std::end(range)));
+#endif
     if (sz == 0) return true;
     std::unique_lock<std::mutex> lock(mutex_);
     if (!not_full_.wait_for(lock, timeout, [this, sz] {
@@ -353,11 +378,17 @@ class LockBasedQueue {
    */
   template <typename R>
   void append_range_impl(R&& range) {
+#if __cplusplus >= 202002L
     if constexpr (requires { queue_.append_range(std::forward<R>(range)); }) {
       queue_.append_range(std::forward<R>(range));
     } else {
       std::ranges::copy(std::forward<R>(range), std::back_inserter(queue_));
     }
+#else
+    using std::begin;
+    using std::end;
+    std::copy(begin(range), end(range), std::back_inserter(queue_));
+#endif
   }
 
  private:
