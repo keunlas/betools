@@ -27,3 +27,5 @@ target_link_libraries(test_lock_based_queue PRIVATE betools::betools)
 add_ctest_executable(test_threadpool test_threadpool.cpp)
 target_link_libraries(test_threadpool PRIVATE betools::betools)
 
+add_ctest_executable(test_config test_config.cpp)
+target_link_libraries(test_config PRIVATE betools::betools)

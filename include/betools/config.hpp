@@ -100,7 +100,8 @@ class Config {
    * @tparam T 目标类型。支持以下类型：
    *   - `std::string` — 直接返回原始字符串
    *   - `short`, `int`, `long`, `long long` — 有符号整数
-   *   - `unsigned short`, `unsigned int`, `unsigned long`, `unsigned long long` — 无符号整数
+   *   - `unsigned short`, `unsigned int`, `unsigned long`, `unsigned long long`
+   * — 无符号整数
    *   - `float`, `double`, `long double` — 浮点数
    *   - `bool` — 布尔值，支持多种字面量（大小写不敏感）
    *   - 其他支持 `operator>>(std::istream&, T&)` 的自定义类型
@@ -110,11 +111,15 @@ class Config {
    *
    * @throws std::runtime_error 当 key 不存在时抛出
    * @throws std::invalid_argument 当 value 无法转换为目标类型时抛出
-   * @throws std::runtime_error 在 bool 分支中，当 value 不是合法布尔字面量时抛出
+   * @throws std::runtime_error 在 bool 分支中，当 value
+   * 不是合法布尔字面量时抛出
    *
-   * @note bool 类型的合法真值（大小写不敏感）：`1`, `true`, `yes`, `on`, `y`, `enable`, `enabled`
-   * @note bool 类型的合法假值（大小写不敏感）：`0`, `false`, `no`, `off`, `n`, `disable`, `disabled`, `ignore`, `notfound`
-   * @note 对于未显式特化的类型，编译期会检查是否支持 `operator>>`，不支持的 T 将在编译时报错
+   * @note bool 类型的合法真值（大小写不敏感）：`1`, `true`, `yes`, `on`, `y`,
+   * `enable`, `enabled`
+   * @note bool 类型的合法假值（大小写不敏感）：`0`, `false`, `no`, `off`, `n`,
+   * `disable`, `disabled`, `ignore`, `notfound`
+   * @note 对于未显式特化的类型，编译期会检查是否支持 `operator>>`，不支持的 T
+   * 将在编译时报错
    */
   template <typename T>
   T GetAs(const std::string& key) const {
@@ -161,10 +166,11 @@ class Config {
         return false;
       throw std::runtime_error("Invalid bool for key '" + key + "': " + val);
     } else {
-      static_assert(std::is_same_v<decltype(std::declval<std::istream&>() >>
-                                            std::declval<T&>()),
-                                   std::istream&>,
-                    "GetAs: T must support stream extraction (operator>>)");
+#if __cplusplus >= 202002L
+      static_assert(
+          requires(std::istream& is, T& t) { is >> t; },
+          "GetAs: T must support stream extraction (operator>>)");
+#endif
       T result{};
       std::istringstream iss(val);
       if (!(iss >> result)) {
