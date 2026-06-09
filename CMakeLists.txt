@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(betools VERSION 1.4.1)
+project(betools VERSION 1.5.0)
 
 include(cmake/build_option.cmake)
 include(cmake/compile_setting.cmake)
