@@ -1,0 +1,115 @@
+// Distributed under the MIT License that can be found in the LICENSE file.
+// https://github.com/keunlas/betools
+//
+// Author: Keunlas <keunlaz at gmail dot com>
+
+#ifndef KEUNLAS_BETOOLS_SINGLETON_HPP_
+#define KEUNLAS_BETOOLS_SINGLETON_HPP_
+
+/**
+ * @file singleton.hpp
+ * @author Keunlas (keunlaz at gmail dot com)
+ * @brief 本头文件包含单例模式模板实现，
+ * 这个文件是 header-only 且 self-contained 的，
+ * 可以随便复制到任何路径下直接进行使用。
+ * @version 1.0.0
+ * @date 2026-06-11
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
+#include <utility>
+
+namespace betools {
+
+/**
+ * @brief 单例持有者模板，为任意类型 T 提供全局唯一实例
+ *
+ * @details 基于 Meyer's Singleton 实现，利用 C++11 函数内静态局部变量的
+ * 线程安全初始化特性（magic statics），无需额外加锁即可保证多线程环境下的
+ * 单例唯一性与初始化安全。
+ *
+ * @tparam T   需要作为单例管理的类型，无需继承任何基类或声明 friend
+ * @tparam Tag 用于区分同类型不同用途的标签类型，默认为 `void`。
+ *             当需要多个同类型的单例时，可定义不同的空结构体作为 Tag
+ *
+ * 使用示例：
+ * @code{.cpp}
+ * // 1. 基础用法：一个 Config 单例
+ * auto& cfg = Singleton<Config>::Instance("app.conf");
+ * std::string val = cfg.GetValue("key");
+ *
+ * // 2. 默认构造的类型
+ * Singleton<MyLogger>::Instance().Log("hello");
+ *
+ * // 3. 同类型多个单例：通过不同 Tag 区分
+ * struct AppCfg {};
+ * struct DbCfg {};
+ *
+ * auto& appCfg = Singleton<Config, AppCfg>::Instance("app.conf");
+ * auto& dbCfg  = Singleton<Config, DbCfg>::Instance("db.conf");
+ * // appCfg 与 dbCfg 是两个完全独立的实例，互不影响
+ * @endcode
+ *
+ * @note
+ * - 首次调用 Instance() 时构造 T 实例（懒加载），后续调用返回同一实例
+ * - C++11 保证 static 局部变量初始化的线程安全，无需额外同步
+ * - 对于同一个 `Singleton<T, Tag>` 组合，应始终使用相同的参数类型调用
+ *   Instance()（参数值可以不同），否则不同模板实例化可能导致编译错误
+ * - 本模板类禁止构造、析构、拷贝和移动
+ */
+template <typename T, typename Tag = void>
+class Singleton {
+ public:
+  /**
+   * @brief 获取 T 的全局唯一实例
+   *
+   * @details 首次调用时以 `args...` 完美转发构造 T，后续调用参数被忽略，
+   * 直接返回已构造的实例。若 T 的构造函数抛出异常，static 变量视为未初始化，
+   * 下一次调用将重新尝试构造。
+   *
+   * @tparam Args 构造 T 所需的参数类型
+   * @param args  转发给 T 构造函数的参数（仅首次调用时实际使用）
+   * @return T& 全局唯一实例的引用
+   */
+  template <typename... Args>
+  static inline T& Instance(Args&&... args) {
+    static T instance(std::forward<Args>(args)...);
+    return instance;
+  }
+
+  /**
+   * @brief 禁止构造
+   */
+  Singleton() = delete;
+
+  /**
+   * @brief 禁止析构
+   */
+  ~Singleton() = delete;
+
+  /**
+   * @brief 禁止拷贝构造
+   */
+  Singleton(const Singleton&) = delete;
+
+  /**
+   * @brief 禁止拷贝赋值
+   */
+  Singleton& operator=(const Singleton&) = delete;
+
+  /**
+   * @brief 禁止移动构造
+   */
+  Singleton(Singleton&&) = delete;
+
+  /**
+   * @brief 禁止移动赋值
+   */
+  Singleton& operator=(Singleton&&) = delete;
+};
+
+}  // namespace betools
+
+#endif  // !KEUNLAS_BETOOLS_SINGLETON_HPP_

@@ -16,4 +16,5 @@
 #include "betools/base.hpp"
 #include "betools/config.hpp"
 #include "betools/lock_based_queue.hpp"
+#include "betools/singleton.hpp"
 #include "betools/threadpool.hpp"
