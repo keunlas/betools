@@ -12,7 +12,7 @@ FILE_PATTERNS           = *.cpp *c *.cc *.cxx *.h *.hpp *.hxx *.md
 # 排除某些符号，例如 namespace::class, namespace::*Test, *::details
 EXCLUDE_SYMBOLS         = 
 # 使用某个 Markdown 文件作为首页
-USE_MDFILE_AS_MAINPAGE  = README.md
+USE_MDFILE_AS_MAINPAGE  = ./README.md
 
 # ==================== 文档输出 ====================
 # 生成文档的语言
