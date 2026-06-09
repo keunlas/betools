@@ -107,4 +107,4 @@ auto& defCfg = betools::Singleton<betools::Config>::Instance("default.conf");
 | 日志器等工具类 | `Singleton<MyLogger>::Instance()` |
 | 需要手动控制销毁顺序 | 考虑基于 `std::unique_ptr` + `Init/Destroy` 的变体方案 |
 
-> **注意** : 对于同一个 `Singleton<T, Tag>` 组合，应始终使用相同的参数类型调用 `Instance()`（例如始终传 `const char*` 或始终传 `std::string`），否则不同模板实例化会导致编译错误。
+> **注意** : 对于同一个 `Singleton<T, Tag>` 组合，必须始终使用相同的参数类型调用 `Instance()`（例如始终传 `std::string` 或始终传 `const char*`），否则会产生多个独立实例而非真正的单例。该错误编译时不会报错，极难排查。

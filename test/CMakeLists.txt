@@ -29,3 +29,6 @@ target_link_libraries(test_threadpool PRIVATE betools::betools)
 
 add_ctest_executable(test_config test_config.cpp)
 target_link_libraries(test_config PRIVATE betools::betools)
+
+add_ctest_executable(test_singleton test_singleton.cpp)
+target_link_libraries(test_singleton PRIVATE betools::betools)

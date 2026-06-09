@@ -55,8 +55,9 @@ namespace betools {
  * @note
  * - 首次调用 Instance() 时构造 T 实例（懒加载），后续调用返回同一实例
  * - C++11 保证 static 局部变量初始化的线程安全，无需额外同步
- * - 对于同一个 `Singleton<T, Tag>` 组合，应始终使用相同的参数类型调用
- *   Instance()（参数值可以不同），否则不同模板实例化可能导致编译错误
+ * - 对于同一个 `Singleton<T, Tag>` 组合，必须始终使用相同的参数类型调用
+ *   Instance()（例如始终传 `std::string` 或始终传 `const char*`），
+ *   否则会产生多个独立实例而非真正的单例（编译时不会报错，极难排查）
  * - 本模板类禁止构造、析构、拷贝和移动
  */
 template <typename T, typename Tag = void>
