@@ -117,5 +117,5 @@ auto   name   = cfg.GetAs<std::string>("name");
 |----------|----------|
 | `std::runtime_error` | key 不存在 |
 | `std::invalid_argument` | value 无法转换为数值类型（如 `stoi`/`stod` 失败） |
-| `std::runtime_error` | bool 分支中 value 不是合法布尔字面量 |
+| `std::runtime_error` | 布尔类型转换时 value 不是合法布尔字面量 |
 | `std::runtime_error` | 回退流转换失败 |

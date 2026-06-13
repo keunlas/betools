@@ -50,6 +50,7 @@ target_link_libraries(my_app PRIVATE betools::betools)
 
 ## 依赖要求
 
+- 需要支持 C++23 的编译器（GCC ≥ 14 / Clang ≥ 18 / MSVC ≥ 2022 17.0）
 - 暂时无第三方库依赖
 
 ### 可选依赖
@@ -68,4 +69,4 @@ target_link_libraries(my_app PRIVATE betools::betools)
 
 ## 许可证
 
-本项目基于 MIT 许可证开源，详见 [LICENSE](https://github.com/keunlas/betools) 文件。
+本项目基于 MIT 许可证开源，详见 [LICENSE](https://github.com/keunlas/betools/blob/main/LICENSE) 文件。

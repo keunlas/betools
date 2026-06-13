@@ -16,7 +16,7 @@ Betoolx 是 Betools 的扩展工具集，同为纯头文件库，但引入了第
 ```cpp
 #include <betoolx/async_console_logger.hpp>
 
-betools::AsyncConsoleLogger log("myapp", spdlog::level::info);
+betoolx::AsyncConsoleLogger log("myapp", spdlog::level::info);
 auto l = log.Get();
 SPDLOG_LOGGER_INFO(l, "Hello {}", "world");
 ```
