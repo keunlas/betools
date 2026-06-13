@@ -64,7 +64,8 @@ class Config {
    *
    * @param cfg 配置文件路径或配置字符串内容
    * @param is_from_file 为 `true` 时 `cfg` 被视为文件路径；
-   *                     为 `false` 时 `cfg` 被视为配置内容字符串
+   *                     为 `false` 时 `cfg` 被视为配置内容字符串；
+   *                     默认为 `true`。
    *
    * @throws std::runtime_error 当 `is_from_file == true` 且文件无法打开时抛出
    */
@@ -98,28 +99,24 @@ class Config {
    * @brief 以指定类型获取配置项的值
    *
    * @tparam T 目标类型。支持以下类型：
-   *   - `std::string` — 直接返回原始字符串
-   *   - `short`, `int`, `long`, `long long` — 有符号整数
-   *   - `unsigned short`, `unsigned int`, `unsigned long`, `unsigned long long`
-   * — 无符号整数
-   *   - `float`, `double`, `long double` — 浮点数
-   *   - `bool` — 布尔值，支持多种字面量（大小写不敏感）
-   *   - 其他支持 `operator>>(std::istream&, T&)` 的自定义类型
+   *   - 有符号整数
+   *   - 无符号整数
+   *   - 浮点数
+   *   - 布尔值
+   *   - 自定义类型，需重载 `operator>>(std::istream&, T&)` 运算符
    *
    * @param key 配置项的键名
    * @return 转换后的值
    *
    * @throws std::runtime_error 当 key 不存在时抛出
    * @throws std::invalid_argument 当 value 无法转换为目标类型时抛出
-   * @throws std::runtime_error 在 bool 分支中，当 value
-   * 不是合法布尔字面量时抛出
    *
    * @note bool 类型的合法真值（大小写不敏感）：`1`, `true`, `yes`, `on`, `y`,
    * `enable`, `enabled`
    * @note bool 类型的合法假值（大小写不敏感）：`0`, `false`, `no`, `off`, `n`,
    * `disable`, `disabled`, `ignore`, `notfound`
-   * @note 对于未显式特化的类型，编译期会检查是否支持 `operator>>`，不支持的 T
-   * 将在编译时报错
+   * @note 自定义类型在 C++20 及以上标准下进行转换时，
+   * 会在编译期就进行检查是否支持 `operator>>`。
    */
   template <typename T>
   T GetAs(const std::string& key) const {
@@ -129,31 +126,63 @@ class Config {
     }
     const std::string& val = it->second;
 
+    /**
+     * 有关 char 和 unsigned char 这两个类型，
+     * 一般这两个类型都是作为字符去读取的，
+     * 所以这里不进行这两类型的特化分支，
+     * 由最后的流操作兜底。
+     */
+
+    // std::string
     if constexpr (std::is_same_v<T, std::string>) {
       return val;
-    } else if constexpr (std::is_same_v<T, short>) {
+    }
+    // short
+    else if constexpr (std::is_same_v<T, short>) {
       return static_cast<short>(std::stoi(val));
-    } else if constexpr (std::is_same_v<T, int>) {
+    }
+    // int
+    else if constexpr (std::is_same_v<T, int>) {
       return std::stoi(val);
-    } else if constexpr (std::is_same_v<T, long>) {
+    }
+    // long
+    else if constexpr (std::is_same_v<T, long>) {
       return std::stol(val);
-    } else if constexpr (std::is_same_v<T, long long>) {
+    }
+    // long long
+    else if constexpr (std::is_same_v<T, long long>) {
       return std::stoll(val);
-    } else if constexpr (std::is_same_v<T, unsigned short>) {
+    }
+    // unsigned short
+    else if constexpr (std::is_same_v<T, unsigned short>) {
       return static_cast<unsigned short>(std::stoul(val));
-    } else if constexpr (std::is_same_v<T, unsigned int>) {
+    }
+    // unsigned int
+    else if constexpr (std::is_same_v<T, unsigned int>) {
       return static_cast<unsigned int>(std::stoul(val));
-    } else if constexpr (std::is_same_v<T, unsigned long>) {
+    }
+    // unsigned long
+    else if constexpr (std::is_same_v<T, unsigned long>) {
       return std::stoul(val);
-    } else if constexpr (std::is_same_v<T, unsigned long long>) {
+    }
+    // unsigned long long
+    else if constexpr (std::is_same_v<T, unsigned long long>) {
       return std::stoull(val);
-    } else if constexpr (std::is_same_v<T, float>) {
+    }
+    // float
+    else if constexpr (std::is_same_v<T, float>) {
       return std::stof(val);
-    } else if constexpr (std::is_same_v<T, double>) {
+    }
+    // double
+    else if constexpr (std::is_same_v<T, double>) {
       return std::stod(val);
-    } else if constexpr (std::is_same_v<T, long double>) {
+    }
+    // long double
+    else if constexpr (std::is_same_v<T, long double>) {
       return std::stold(val);
-    } else if constexpr (std::is_same_v<T, bool>) {
+    }
+    // bool
+    else if constexpr (std::is_same_v<T, bool>) {
       auto lower_val = to_lower(val);
       if (lower_val == "1" || lower_val == "true" || lower_val == "yes" ||
           lower_val == "on" || lower_val == "y" || lower_val == "enable" ||
@@ -165,14 +194,17 @@ class Config {
           lower_val == "notfound")
         return false;
       throw std::runtime_error("Invalid bool for key '" + key + "': " + val);
-    } else {
+    }
+    // others
+    else {
 #if __cplusplus >= 202002L
+      // C++20 的约束可以轻松的检查某些操作是否能够进行
       static_assert(
           requires(std::istream& is, T& t) { is >> t; },
           "GetAs: T must support stream extraction (operator>>)");
 #endif
-      T result{};
       std::istringstream iss(val);
+      T result{};
       if (!(iss >> result)) {
         throw std::runtime_error("Failed to convert key '" + key + "': " + val);
       }
@@ -216,7 +248,7 @@ class Config {
    * @brief 去除 string_view 首尾空白字符
    *
    * @param sv 待处理的字符串视图
-   * @return 去除首尾空白后的子视图（不会分配新内存）
+   * @return 去除首尾空白后的子视图
    */
   std::string_view trim(std::string_view sv) {
     while (!sv.empty() && is_space(sv.front())) sv.remove_prefix(1);
