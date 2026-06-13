@@ -26,10 +26,6 @@ namespace betools {
 /**
  * @brief 单例持有者模板，为任意类型 T 提供全局唯一实例
  *
- * @details 基于 Meyer's Singleton 实现，利用 C++11 函数内静态局部变量的
- * 线程安全初始化特性（magic statics），无需额外加锁即可保证多线程环境下的
- * 单例唯一性与初始化安全。
- *
  * @tparam T   需要作为单例管理的类型，无需继承任何基类或声明 friend
  * @tparam Tag 用于区分同类型不同用途的标签类型，默认为 `void`。
  *             当需要多个同类型的单例时，可定义不同的空结构体作为 Tag
@@ -49,16 +45,7 @@ namespace betools {
  *
  * auto& appCfg = Singleton<Config, AppCfg>::Instance("app.conf");
  * auto& dbCfg  = Singleton<Config, DbCfg>::Instance("db.conf");
- * // appCfg 与 dbCfg 是两个完全独立的实例，互不影响
  * @endcode
- *
- * @note
- * - 首次调用 Instance() 时构造 T 实例（懒加载），后续调用返回同一实例
- * - C++11 保证 static 局部变量初始化的线程安全，无需额外同步
- * - 对于同一个 `Singleton<T, Tag>` 组合，必须始终使用相同的参数类型调用
- *   Instance()（例如始终传 `std::string` 或始终传 `const char*`），
- *   否则会产生多个独立实例而非真正的单例（编译时不会报错，极难排查）
- * - 本模板类禁止构造、析构、拷贝和移动
  */
 template <typename T, typename Tag = void>
 class Singleton {
@@ -66,13 +53,17 @@ class Singleton {
   /**
    * @brief 获取 T 的全局唯一实例
    *
-   * @details 首次调用时以 `args...` 完美转发构造 T，后续调用参数被忽略，
+   * @details 首次调用时以 `args...` 完美转发构造 T，后续调用同类型参数被忽略，
    * 直接返回已构造的实例。若 T 的构造函数抛出异常，static 变量视为未初始化，
    * 下一次调用将重新尝试构造。
    *
    * @tparam Args 构造 T 所需的参数类型
    * @param args  转发给 T 构造函数的参数（仅首次调用时实际使用）
    * @return T& 全局唯一实例的引用
+   *
+   * @note 不同类型的 `args...` 会产生新的模板函数，
+   * 即 Instance(std::string("hello")) 与 Instance("hello")
+   * 会产生不同的静态对象。
    */
   template <typename... Args>
   static inline T& Instance(Args&&... args) {
