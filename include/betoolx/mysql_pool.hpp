@@ -210,13 +210,6 @@ class MysqlPool {
     Connection& operator=(const Connection&) = delete;
 
     /**
-     * @brief 箭头运算符，返回原生 MYSQL 句柄指针。
-     *
-     * @return MYSQL* 原生 MySQL 连接句柄
-     */
-    MYSQL* operator->() { return conn_; }
-
-    /**
      * @brief 获取原生 MYSQL 句柄指针。
      *
      * @return MYSQL* 原生 MySQL 连接句柄
