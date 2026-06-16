@@ -25,6 +25,7 @@
 #include <future>
 #include <memory>
 #include <thread>
+#include <vector>
 
 #include "betools/lock_based_queue.hpp"
 
@@ -51,26 +52,19 @@ class ThreadPool {
    */
   ThreadPool(size_t num_threads, size_t queue_size,
              ExitFlag exit_flag = ExitFlag::TASKS_DONE)
-      : task_queue_(queue_size), active_workers_(num_threads) {
+      : task_queue_(queue_size) {
+    using std::chrono::milliseconds;
     for (size_t i = 0; i < num_threads; ++i) {
       workers_.emplace_back([this, exit_flag] {
-        for (;;) {
+        while (stop_.load() == false) {
           std::function<void()> task;
-          task_queue_.Dequeue(task);
-          if (stop_.load(std::memory_order_acquire)) {
-            if (exit_flag == ExitFlag::TASKS_DROP) {
-              break;
-            }
-            // TASKS_DONE: execute this task, drain remaining, then exit
-            task();
-            while (task_queue_.TryDequeue(task)) {
-              task();
-            }
-            break;
-          }
-          task();
+          bool not_timeout = task_queue_.TryDequeueFor(milliseconds(10), task);
+          if (not_timeout) task();
         }
-        active_workers_.fetch_sub(1, std::memory_order_release);
+        if (exit_flag != ExitFlag::TASKS_DROP) {
+          std::function<void()> task;
+          while (task_queue_.TryDequeue(task)) task();
+        }
       });
     }
   }
@@ -80,18 +74,9 @@ class ThreadPool {
    */
   ~ThreadPool() {
     stop_.store(true, std::memory_order_release);
-    // Keep enqueuing dummy tasks to wake blocked threads until all exit
-    while (active_workers_.load(std::memory_order_acquire) > 0) {
-      for (size_t i = 0; i < workers_.size(); ++i) {
-        task_queue_.TryEnqueue([] {});
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
     // 等待线程退出
     for (auto& worker : workers_) {
-      if (worker.joinable()) {
-        worker.join();
-      }
+      if (worker.joinable()) worker.join();
     }
   }
 
@@ -147,7 +132,11 @@ class ThreadPool {
     if (stop_) return std::future<return_type>();
     // 从 std::bind 封装 std::packaged_task 对象
     auto task = std::make_shared<std::packaged_task<return_type()>>(
-        std::bind(std::forward<F>(func), std::forward<Args>(args)...));
+        [func = std::forward<F>(func),
+         ... args = std::forward<Args>(args)]() mutable {
+          return std::invoke(std::forward<F>(func),
+                             std::forward<Args>(args)...);
+        });
     // 获取 std::packaged_task 返回值的 std::future 对象
     std::future<return_type> res = task->get_future();
     // 封装 std::packaged_task 为 std::function<void()> 并添加入任务队列
@@ -163,7 +152,6 @@ class ThreadPool {
   LockBasedQueue<std::function<void()>> task_queue_;
   std::vector<std::thread> workers_;
   std::atomic<bool> stop_{false};
-  std::atomic<size_t> active_workers_{0};
 };
 
 }  // namespace betools
