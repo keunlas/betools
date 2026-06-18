@@ -10,43 +10,8 @@
  * @file mysql_pool.hpp
  * @author Keunlas (keunlaz at gmail dot com)
  * @brief 本头文件包含 MySQL 连接池的实现。
- *
- * @details
- * MysqlPool 是一个线程安全的 MySQL 连接池，提供连接复用、自动重连、
- * 借出超时等功能。内部使用 betools::LockBasedQueue 管理空闲连接，
- * 配合 RAII 包装器 Connection 确保连接在离开作用域时自动归还。
- *
- * 该文件依赖 libmysqlclient 库，使用前请确保已安装 MySQL 客户端库：
- * @code{.sh}
- * sudo apt install libmysqlclient-dev
- * @endcode
- *
- * 使用示例：
- * @code{.cpp}
- * #include <betoolx/mysql_pool.hpp>
- *
- * int main() {
- *     betoolx::MysqlPool pool("127.0.0.1", 3306, "root", "pass", "test");
- *
- *     auto conn = pool.Borrow();
- *     if (!conn) {
- *         // 获取连接失败（超时或池耗尽）
- *         return -1;
- *     }
- *     mysql_query(conn.get(), "SELECT 1");
- *     // conn 离开作用域时自动归还到池中
- *
- *     return 0;
- * }
- * @endcode
- *
- * 可通过编译宏调整池参数（须在包含此头文件前定义）：
- * - `MYSQL_POOL_MIN_CONN`: 最小空闲连接数，默认 2
- * - `MYSQL_POOL_MAX_CONN`: 最大连接总数，默认 16
- * - `MYSQL_POOL_BORROW_TIMEOUT`: 借出超时时间，默认 3000ms
- *
- * @version 1.0.0
- * @date 2026-06-12
+ * @version 1.1.0
+ * @date 2026-06-19
  *
  * @copyright Copyright (c) 2026
  *
@@ -64,10 +29,6 @@
 /**
  * @def MYSQL_POOL_MIN_CONN
  * @brief 池中最少保持的空闲连接数（预热 + 收缩底线）。
- *
- * @details
- * 连接池在构造时会预先创建该数量的连接并放入空闲队列，避免首次借出时的
- * 冷启动延迟。定义前可通过 `#define` 覆盖默认值。
  */
 #ifndef MYSQL_POOL_MIN_CONN
 #define MYSQL_POOL_MIN_CONN 2
@@ -76,11 +37,6 @@
 /**
  * @def MYSQL_POOL_MAX_CONN
  * @brief 池中允许的最大连接总数（空闲 + 已借出）。
- *
- * @details
- * 当 total_count 达到此上限时，新 Borrow() 请求将阻塞等待直至超时。
- * 该值应对应 MySQL 服务器 `max_connections` 设置，避免打爆数据库。
- * 定义前可通过 `#define` 覆盖默认值。
  */
 #ifndef MYSQL_POOL_MAX_CONN
 #define MYSQL_POOL_MAX_CONN 16
@@ -88,11 +44,7 @@
 
 /**
  * @def MYSQL_POOL_BORROW_TIMEOUT
- * @brief Borrow() 阻塞等待的最大时长，超时返回 `nullptr`。
- *
- * @details
- * 类型为 `std::chrono::milliseconds`，默认 3000ms。
- * 定义前可通过 `#define` 覆盖默认值。
+ * @brief 获取连接操作的阻塞等待的最大时长，超时返回 `nullptr`。
  */
 #ifndef MYSQL_POOL_BORROW_TIMEOUT
 #define MYSQL_POOL_BORROW_TIMEOUT std::chrono::milliseconds(3000)
@@ -109,90 +61,24 @@ static_assert(MYSQL_POOL_MIN_CONN <= MYSQL_POOL_MAX_CONN,
 
 namespace betoolx {
 
-/**
- * @class MysqlPool
- * @brief 线程安全的 MySQL 连接池。
- *
- * @details
- * 基于 betools::LockBasedQueue 实现的多线程安全连接池。核心特性：
- * - **预热**：构造时预创建 MYSQL_POOL_MIN_CONN 个连接，消除冷启动延迟
- * - **容量控制**：total_count 不超过 MYSQL_POOL_MAX_CONN，防止打爆数据库
- * - **借出超时**：池满时阻塞等待 MYSQL_POOL_BORROW_TIMEOUT 后返回 nullptr
- * - **自动重连**：创建连接时设置 `MYSQL_OPT_RECONNECT`，配合 `mysql_ping()`
- *   实现透明的连接恢复
- * - **RAII 归还**：通过内嵌类 Connection 保证连接在离开作用域时自动归还
- *
- * 借出流程（三段式 Borrow）：
- * 1. 非阻塞尝试从空闲队列取出已有连接
- * 2. 若未达上限，"预留名额 + 创建新连接"（mutex 保护 check-then-act）
- * 3. 若已达上限，带超时阻塞等待直至有人归还
- *
- * @note 本类禁止拷贝和移动。通常与 betools::Singleton 配合使用以获得全局
- * 唯一实例。
- *
- * @see betools::LockBasedQueue
- */
 class MysqlPool {
  public:
-  /**
-   * @class Connection
-   * @brief RAII 连接包装器，离开作用域时自动归还连接。
-   *
-   * @details
-   * 封装原生 `MYSQL*` 句柄及所属池指针。对象析构时自动调用
-   * `MysqlPool::return_conn()` 将连接归还到空闲队列。
-   *
-   * **只允许移动，禁止拷贝**，以防止同一连接被重复归还。
-   * 移动后源对象被置空（`conn_ = nullptr`, `pool_ = nullptr`），
-   * 其析构变为空操作。
-   *
-   * 使用方式：
-   * @code{.cpp}
-   * auto conn = pool.Borrow();
-   * if (conn) {
-   *     mysql_query(conn.get(), "SELECT * FROM users");
-   *     MYSQL_RES* res = mysql_store_result(conn.get());
-   *     // ...
-   * }
-   * // conn 析构，连接自动归还
-   * @endcode
-   */
   class Connection {
    public:
-    /**
-     * @brief 构造 Connection，接管一个原生连接。
-     *
-     * @param conn 原生 MySQL 连接句柄（不可为 nullptr）
-     * @param pool 所属连接池指针
-     */
     Connection(MYSQL* conn, MysqlPool* pool) : conn_(conn), pool_(pool) {}
 
-    /**
-     * @brief 析构，自动将连接归还到池中。
-     *
-     * @details 若 conn_ 或 pool_ 为空（移动后状态），则为空操作。
-     */
     ~Connection() {
       if (pool_ && conn_) pool_->return_conn(conn_);
     }
 
-    /**
-     * @brief 移动构造，接管 other 的连接，并将 other 置空。
-     *
-     * @param other 源 Connection 对象
-     */
+    /// @brief 允许移动构造
     Connection(Connection&& other) noexcept
         : conn_(other.conn_), pool_(other.pool_) {
       other.conn_ = nullptr;
       other.pool_ = nullptr;
     }
 
-    /**
-     * @brief 移动赋值。先归还当前持有的连接，再接管 other 的连接。
-     *
-     * @param other 源 Connection 对象
-     * @return Connection& 自身引用
-     */
+    /// @brief 允许移动赋值
     Connection& operator=(Connection&& other) noexcept {
       if (this != &other) {
         if (pool_ && conn_) pool_->return_conn(conn_);
@@ -209,12 +95,10 @@ class MysqlPool {
     /// @brief 禁止拷贝赋值
     Connection& operator=(const Connection&) = delete;
 
-    /**
-     * @brief 获取原生 MYSQL 句柄指针。
-     *
-     * @return MYSQL* 原生 MySQL 连接句柄
-     */
-    MYSQL* get() { return conn_; }
+    /// @brief 获取内部的 MYSQL* 类型
+    inline MYSQL* Raw() { return conn_; }
+    /// @brief 函数 Raw() 的别名
+    inline MYSQL* Get() { return Raw(); }
 
    private:
     MYSQL* conn_;      ///< 原生 MySQL 连接句柄
@@ -224,11 +108,6 @@ class MysqlPool {
  public:
   /**
    * @brief 构造连接池并预热 MYSQL_POOL_MIN_CONN 个连接。
-   *
-   * @details
-   * 依次创建 MYSQL_POOL_MIN_CONN 个连接并放入空闲队列。
-   * 若某个连接创建失败（网络不通、认证失败等），会静默跳过，
-   * 不影响其他连接的预热。
    *
    * @param host   MySQL 服务器地址
    * @param port   MySQL 端口号
@@ -240,7 +119,7 @@ class MysqlPool {
             const std::string& user, const std::string& passwd,
             const std::string& db)
       : host_(host), port_(port), user_(user), passwd_(passwd), db_(db) {
-    // 预热 MYSQL_POOL_MIN_CONN 个连接放入空闲队列
+    // 预热
     for (size_t i = 0; i < MYSQL_POOL_MIN_CONN; ++i) {
       MYSQL* conn = create_conn();
       if (conn) {
@@ -252,11 +131,6 @@ class MysqlPool {
 
   /**
    * @brief 析构，关闭所有空闲连接并校验无泄漏。
-   *
-   * @details
-   * 逐一从空闲队列取出连接并调用 `mysql_close()` 释放。
-   * 最后通过 `assert(active_count_ == 0)` 断言没有任何连接未归还——
-   * 如果触发断言，说明有 Connection 对象在析构前未被销毁，属于编程错误。
    */
   ~MysqlPool() {
     // 清理所有空闲连接
@@ -357,11 +231,6 @@ class MysqlPool {
   /**
    * @brief 校验连接是否存活。
    *
-   * @details
-   * 调用 `mysql_ping()` 检测连接状态。由于 `create_conn()` 中已设置
-   * `MYSQL_OPT_RECONNECT`，`mysql_ping()` 在检测到连接断开时会
-   * 自动尝试重连，对调用方透明。
-   *
    * @param conn 待校验的连接
    * @return true  连接有效（或自动重连成功）
    * @return false 连接无效且重连失败
@@ -374,10 +243,6 @@ class MysqlPool {
 
   /**
    * @brief 创建一个新的 MySQL 连接。
-   *
-   * @details
-   * 调用 `mysql_init()` → `mysql_options(MYSQL_OPT_RECONNECT)` →
-   * `mysql_real_connect()` 完成连接创建。任一步骤失败均返回 `nullptr`。
    *
    * @return MYSQL* 成功时返回新连接句柄，失败时返回 `nullptr`。
    *         调用方不需要关心 `mysql_close()` ——失败时内部已关闭。
@@ -401,12 +266,6 @@ class MysqlPool {
 
   /**
    * @brief 归还连接到空闲队列。
-   *
-   * @details
-   * 先尝试 `TryEnqueue` 放回空闲队列。若队列已满（理论上不会发生，
-   * 因为队列容量等于 MYSQL_POOL_MAX_CONN），则兜底关闭连接并回收计数。
-   *
-   * 此函数由 Connection 的析构函数自动调用，用户无需手动调用。
    *
    * @param conn 待归还的连接（可为 nullptr，此时函数为空操作）
    */
@@ -438,14 +297,8 @@ class MysqlPool {
   std::atomic<size_t> total_count_{0};
   ///< 当前连接总数（idle + active），永不超 MYSQL_POOL_MAX_CONN
 
-  /**
-   * @brief 互斥锁，仅用于保护 total_count_ 的 "检查-预留" 操作。
-   *
-   * @details
-   * 持锁期间仅做 `fetch_add(1)` 预留名额，create_conn() 的网络 I/O
-   * 在锁外执行，避免长时间持锁阻塞其他线程。
-   */
   std::mutex mutex_{};
+  ///< 互斥锁，仅用于保护 total_count_ 的 "检查-预留" 操作。
 };
 
 }  // namespace betoolx

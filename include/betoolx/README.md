@@ -36,8 +36,9 @@ int main() {
         return -1;
     }
 
-    if (mysql_query(conn.get(), "SELECT 1") != 0) {
-        fprintf(stderr, "Query failed: %s\n", mysql_error(conn.get()));
+    // 通过 Raw() 或 Get() 获取底层 MYSQL* 指针
+    if (mysql_query(conn->Raw(), "SELECT 1") != 0) {
+        fprintf(stderr, "Query failed: %s\n", mysql_error(conn->Raw()));
     }
 
     return 0;
