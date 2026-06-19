@@ -32,3 +32,7 @@ target_link_libraries(test_config PRIVATE betools::betools)
 
 add_ctest_executable(test_singleton test_singleton.cpp)
 target_link_libraries(test_singleton PRIVATE betools::betools)
+
+add_test_executable(mysql_pool_test mysql_pool_test.cpp)
+target_link_libraries(mysql_pool_test PRIVATE betools::betools)
+target_link_libraries(mysql_pool_test PRIVATE mysqlclient)
