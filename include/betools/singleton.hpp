@@ -30,22 +30,6 @@ namespace betools {
  * @tparam Tag 用于区分同类型不同用途的标签类型，默认为 `void`。
  *             当需要多个同类型的单例时，可定义不同的空结构体作为 Tag
  *
- * 使用示例：
- * @code{.cpp}
- * // 1. 基础用法：一个 Config 单例
- * auto& cfg = Singleton<Config>::Instance("app.conf");
- * std::string val = cfg.GetValue("key");
- *
- * // 2. 默认构造的类型
- * Singleton<MyLogger>::Instance().Log("hello");
- *
- * // 3. 同类型多个单例：通过不同 Tag 区分
- * struct AppCfg {};
- * struct DbCfg {};
- *
- * auto& appCfg = Singleton<Config, AppCfg>::Instance("app.conf");
- * auto& dbCfg  = Singleton<Config, DbCfg>::Instance("db.conf");
- * @endcode
  */
 template <typename T, typename Tag = void>
 class Singleton {

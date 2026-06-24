@@ -45,17 +45,6 @@ namespace betools {
  * - 相同的 key 出现多次时，以最后一个 value 为准
  * - 支持通过 `GetAs<T>()` 将 value 转换为任意类型
  *
- * @note 本文件为 header-only，可直接复制使用，无需链接额外库
- *
- * 使用示例：
- * @code{.cpp}
- * Config cfg("app.conf");                      // 从文件读取
- * Config cfg_str("key1=val1\nkey2=42", false); // 从字符串读取
- *
- * std::string name = cfg.GetValue("name");
- * int port = cfg.GetAs<int>("port");
- * bool debug = cfg.GetAs<bool>("debug");
- * @endcode
  */
 class Config {
  public:
@@ -111,18 +100,16 @@ class Config {
    * @throws std::runtime_error 当 key 不存在时抛出
    * @throws std::invalid_argument 当 value 无法转换为目标类型时抛出
    *
-   * @note bool 类型的合法真值（大小写不敏感）：`1`, `true`, `yes`, `on`, `y`,
-   * `enable`, `enabled`
-   * @note bool 类型的合法假值（大小写不敏感）：`0`, `false`, `no`, `off`, `n`,
-   * `disable`, `disabled`, `ignore`, `notfound`
-   * @note 自定义类型在 C++20 及以上标准下进行转换时，
-   * 会在编译期就进行检查是否支持 `operator>>`。
+   * @note bool 类型的合法真值（大小写不敏感）：
+   * `1`, `true`, `yes`, `on`, `y`, `enable`, `enabled`
+   * @note bool 类型的合法假值（大小写不敏感）：
+   * `0`, `false`, `no`, `off`, `n`, `disable`, `disabled`, `ignore`, `notfound`
    */
   template <typename T>
   T GetAs(const std::string& key) const {
     auto it = configs_.find(key);
     if (it == configs_.end()) {
-      throw std::runtime_error("Config key not found: " + key);
+      throw std::runtime_error("Config::GetAs - key not found: " + key);
     }
     const std::string& val = it->second;
 
@@ -193,7 +180,8 @@ class Config {
           lower_val == "disabled" || lower_val == "ignore" ||
           lower_val == "notfound")
         return false;
-      throw std::runtime_error("Invalid bool for key '" + key + "': " + val);
+      throw std::runtime_error("Config::GetAs - invalid bool for key '" + key +
+                               "': " + val);
     }
     // others
     else {
@@ -201,7 +189,7 @@ class Config {
       // C++20 的约束可以轻松的检查某些操作是否能够进行
       static_assert(
           requires(std::istream& is, T& t) { is >> t; },
-          "GetAs: T must support stream extraction (operator>>)");
+          "Config::GetAs - T must support stream extraction (operator>>)");
 #endif
       std::istringstream iss(val);
       T result{};
