@@ -29,3 +29,5 @@
 !/include/**/*.hpp
 !/src/**/*.c
 !/src/**/*.cpp
+
+!/trash/**/*
