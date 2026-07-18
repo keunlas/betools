@@ -8,7 +8,6 @@ if(${PROJECT_NAME}_ENABLE_INSTALL)
 # install(FILES ${CMAKE_SOURCE_DIR}/include/head.h DESTINATION include)
 install(FILES ${PROJECT_SOURCE_DIR}/include/betools.hpp DESTINATION include)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/betools DESTINATION include FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h")
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/betoolx DESTINATION include FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h")
 
 ### 安装二进制目标文件 ###
 # install(TARGETS lib1 DESTINATION lib)
