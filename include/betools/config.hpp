@@ -12,7 +12,6 @@
  * @brief 本头文件包含解析配置文件实现，
  * 这个文件是 header-only 且 self-contained 的，
  * 可以随便复制到任何路径下直接进行使用。
- * @version 1.0.0
  * @date 2026-06-09
  *
  * @copyright Copyright (c) 2026
@@ -25,9 +24,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace betools {
 
@@ -44,9 +45,15 @@ namespace betools {
  * - 若一行中没有 `=`，则将该行作为 key，value 为空
  * - 相同的 key 出现多次时，以最后一个 value 为准
  * - 支持通过 `GetAs<T>()` 将 value 转换为任意类型
+ * - 支持通过分隔符分割 value 为多个项，默认分隔符为 `|`
+ * - value 分隔出的多个元素，每个元素的开头和结尾不能是空白字符
  *
  */
 class Config {
+ public:
+  static inline constexpr bool PARSE_FROM_FILE{true};
+  static inline constexpr bool PARSE_FROM_STRING{false};
+
  public:
   /**
    * @brief 构造 Config 并立即解析配置内容
@@ -58,12 +65,12 @@ class Config {
    *
    * @throws std::runtime_error 当 `is_from_file == true` 且文件无法打开时抛出
    */
-  Config(const std::string& cfg, bool is_from_file = true) {
+  Config(const std::string& cfg, bool is_from_file = PARSE_FROM_FILE) {
     std::unique_ptr<std::istream> in;
     if (is_from_file) {
       auto fs = std::make_unique<std::ifstream>(cfg);
       if (!fs->is_open()) {
-        throw std::runtime_error("Cannot open config file: " + cfg);
+        throw std::runtime_error("Config::Config - file not found: " + cfg);
       }
       in = std::move(fs);
     } else {
@@ -82,6 +89,27 @@ class Config {
     auto it = configs_.find(key);
     if (it == configs_.end()) return "";
     return it->second;
+  }
+
+  /**
+   * @brief 以字符串数组获取多元素配置项的值
+   *
+   * @param key 配置项的键名
+   * @param delim 不同元素之间的分隔符, 缺省为 `|`
+   * @return 配置项的所有元素集合；若 key 不存在则返回空的数组
+   */
+  std::vector<std::string> GetValues(const std::string& key,
+                                     char delim = '|') const {
+    auto it = configs_.find(key);
+    if (it == configs_.end()) return {};
+    auto elems = split(it->second, delim);
+    std::vector<std::string> result;
+    result.reserve(elems.size());
+    for (auto&& elem : elems) {
+      auto trim_elem = trim(elem);
+      result.emplace_back(trim_elem.data(), trim_elem.size());
+    }
+    return result;
   }
 
   /**
@@ -181,7 +209,7 @@ class Config {
           lower_val == "notfound")
         return false;
       throw std::runtime_error("Config::GetAs - invalid bool for key '" + key +
-                               "': " + val);
+                               "' = " + val);
     }
     // others
     else {
@@ -194,7 +222,8 @@ class Config {
       std::istringstream iss(val);
       T result{};
       if (!(iss >> result)) {
-        throw std::runtime_error("Failed to convert key '" + key + "': " + val);
+        throw std::runtime_error("Config::GetAs - failed to convert key '" +
+                                 key + "' = " + val);
       }
       return result;
     }
@@ -238,7 +267,7 @@ class Config {
    * @param sv 待处理的字符串视图
    * @return 去除首尾空白后的子视图
    */
-  std::string_view trim(std::string_view sv) {
+  std::string_view trim(std::string_view sv) const {
     while (!sv.empty() && is_space(sv.front())) sv.remove_prefix(1);
     while (!sv.empty() && is_space(sv.back())) sv.remove_suffix(1);
     return sv;
@@ -275,6 +304,25 @@ class Config {
    */
   static bool is_space(char c) {
     return std::isspace(static_cast<unsigned char>(c));
+  }
+
+  /**
+   * @brief 把一个 string_view 通过分隔符 delim 分隔为多个视图
+   *
+   * @param sv 待处理的 string_view
+   * @param delim 分隔符
+   * @return std::vector<std::string_view>
+   */
+  std::vector<std::string_view> split(std::string_view sv, char delim) const {
+    std::vector<std::string_view> result;
+    std::size_t start = 0;
+    std::size_t pos;
+    while ((pos = sv.find(delim, start)) != std::string_view::npos) {
+      result.push_back(sv.substr(start, pos - start));
+      start = pos + 1;
+    }
+    result.push_back(sv.substr(start));  // 最后一段
+    return result;
   }
 
  private:
