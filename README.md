@@ -8,6 +8,7 @@ Betools 是一系列纯头文件库（Header-Only）集合形式的 C++ 小工�
 |------|--------|------|----------|
 | **Base** | `betools/base.hpp` | Base62 / Base64 / Base64URL 编解码，支持自定义字符集与填充处理 | [docs/base.md](docs/base.md) |
 | **Config** | `betools/config.hpp` | 轻量级配置文件解析器，支持泛型类型转换、行内注释和大小写不敏感的布尔值 | [docs/config.md](docs/config.md) |
+| **Endian** | `betools/endian.h` | 字节序转换接口（`htobe16` / `betoh16` / `htole16` / `letoh16` 等），按语言、编译器与平台自动分类并转调已有设施 | [docs/endian.md](docs/endian.md) |
 | **LockBasedQueue** | `betools/lock_based_queue.hpp` | 线程安全的有界阻塞队列，支持单元素/批量入队、原地构造和超时等待 | [docs/lock_based_queue.md](docs/lock_based_queue.md) |
 | **Singleton** | `betools/singleton.hpp` | 单例持有者模板，通过 Tag 区分同类型多实例，支持任意构造参数完美转发 | [docs/singleton.md](docs/singleton.md) |
 | **ThreadPool** | `betools/threadpool.hpp` | 固定大小的线程池，支持任务提交（含返回值）、可配置退出策略 | [docs/threadpool.md](docs/threadpool.md) |
