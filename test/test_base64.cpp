@@ -228,5 +228,27 @@ int main() {
     }
   }
 
+  // ========== base64url 等价填充表示测试 ==========
+  {
+    using base64url = betools::base::alphabet::base64url;
+    using betools::base::base64::decode;
+    using betools::base::base64::pad;
+    using betools::base::base64::trim;
+
+    // "%3D" 与 "%3d" 都是合法的填充表示，且允许混用
+    assert(decode<base64url>("YQ%3D%3D") == "a");
+    assert(decode<base64url>("YQ%3d%3D") == "a");
+    assert(decode<base64url>("YQ%3D%3d") == "a");
+    assert(decode<base64url>("YWI%3D") == "ab");
+
+    // trim 会去除任意一种填充表示，pad 使用规范的 "%3d"
+    assert(trim<base64url>("YQ%3D%3D") == "YQ");
+    assert(trim<base64url>("YQ%3d%3D") == "YQ");
+    assert(pad<base64url>("YQ") == "YQ%3d%3d");
+
+    // 填充部分混入非法字符时解码失败
+    assert(decode<base64url>("YQ%3Dx") == "");
+  }
+
   return EXIT_SUCCESS;
 }
