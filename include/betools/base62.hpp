@@ -7,7 +7,7 @@
 #define KEUNLAS_BETOOLS_BASE62_HPP_
 
 /**
- * @file base.hpp
+ * @file base62.hpp
  * @author Keunlas (keunlaz at gmail dot com)
  * @brief 本头文件包含 Base62 编码相关工具，
  * 这个文件是 header-only 且 self-contained 的，

@@ -7,7 +7,7 @@
 #define KEUNLAS_BETOOLS_BASE64_HPP_
 
 /**
- * @file base.hpp
+ * @file base64.hpp
  * @author Keunlas (keunlaz at gmail dot com)
  * @brief 本头文件包含 Base64 编码相关工具，
  * 这个文件是 header-only 且 self-contained 的，
@@ -304,17 +304,23 @@ inline std::string decode(const std::string& base_string,
  * @attention 请避免直接使用 details 命名空间下的接口或代码，
  * 它们随时可能进行大幅更改
  *
+ * 实现为幂等操作：先去除输入中已有的填充表示（等价于 trim），
+ * 再按数据部分的长度补全，因此 pad(x) == pad(trim(x))。
+ *
  * @param fill 字符集定义的填充表示列表，补全时使用其中的规范填充串。
  */
 inline std::string pad(const std::string& base_string,
                        const std::vector<std::string>& fill) {
   const std::string& padding_unit = canonical_fill(fill);
 
-  std::string padding;
-  for (std::size_t i = 0; i < (4 - base_string.size() % 4) % 4; ++i) {
-    padding += padding_unit;
+  // 从最早的填充表示开始截断，避免对已填充的输入重复补全
+  std::string result = base_string.substr(0, find_fill(base_string, fill));
+  // 注意先计算补全个数：result 在循环中会增长
+  const std::size_t padding_count = (4 - result.size() % 4) % 4;
+  for (std::size_t i = 0; i < padding_count; ++i) {
+    result += padding_unit;
   }
-  return base_string + padding;
+  return result;
 }
 
 /**
@@ -360,18 +366,20 @@ std::string decode(const std::string& base_string) {
 }
 
 /**
- * @brief 给修剪过的 Base64 编码字符串重新添加上填充。
+ * @brief 给 Base64 编码字符串补全填充。
  *
  * @note 补全时使用 Alphabets::fill() 中的第一个元素作为填充串。
  *
- * @attention 当填充符长度大于 1 时，
- * 请确保传入的 base_string 一定是修剪过后的。
- * 否则可能会获得错误的结果。
- * 例如使用 base64url 时传入 "YSB2YT8%3d" 输出 "YSB2YT8%3d%3d%3d".
+ * @note 该函数是幂等的：输入中已有的填充会先被去除，再按数据部分的长度补齐，
+ * 因此 pad(pad(x)) == pad(x)，传入已修剪或已填充的字符串都可以。
+ * 例如使用 base64url 时，输入 "YSB2YT8" 与 "YSB2YT8%3d" 都会得到
+ * "YSB2YT8%3d"；非规范的填充表示（如 "%3D"）会被归一化为规范填充串。
+ * 注意：去除操作从最早的填充表示开始（与 trim() 一致），
+ * 因此对填充位置不合法的输入会先截断再补全，例如 "YQ==YQ==" 会得到 "YQ=="。
  *
  * @tparam Alphabets 编码字符集类型，默认为 alphabet::base64。
- * @param base_string 修剪过的 Base64 编码字符串。
- * @return 重新添加上填充的 Base64 编码字符串。
+ * @param base_string Base64 编码字符串，可以带填充，也可以不带填充。
+ * @return 补全到 4 的倍数后的 Base64 编码字符串。
  */
 template <typename Alphabets = alphabet::base64>
 std::string pad(const std::string& base_string) {

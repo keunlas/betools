@@ -250,5 +250,43 @@ int main() {
     assert(decode<base64url>("YQ%3Dx") == "");
   }
 
+  // ========== pad 幂等性测试 ==========
+  {
+    using base64url = betools::base::alphabet::base64url;
+    using betools::base::base64::pad;
+    using betools::base::base64::trim;
+
+    // 已带规范填充的输入保持不变
+    assert(pad("YQ==") == "YQ==");
+    assert(pad("YWI=") == "YWI=");
+    assert(pad("YWJj") == "YWJj");
+    assert(pad<base64url>("YQ%3d%3d") == "YQ%3d%3d");
+    assert(pad<base64url>("YWI%3d") == "YWI%3d");
+
+    // 非规范的填充表示会被归一化为规范填充串
+    assert(pad<base64url>("YQ%3D%3D") == "YQ%3d%3d");
+    assert(pad<base64url>("YWI%3D") == "YWI%3d");
+
+    // 曾经的重复补全问题：已填充的 base64url 字符串不再被继续追加填充
+    assert(pad<base64url>("YSB2YT8%3d") == "YSB2YT8%3d");
+    assert(pad<base64url>("YSB2YT8%3D") == "YSB2YT8%3d");
+
+    // 部分填充与过度填充会先被去除再补全
+    assert(pad<base64url>("AQ%3d") == "AQ%3d%3d");
+    assert(pad("YQ===") == "YQ==");
+
+    // pad(x) 等价于 pad(trim(x))，且补全结果幂等
+    assert(pad("YQ==YQ==") == pad(trim("YQ==YQ==")));
+    for (auto&& test_case : pad_trim_cases) {
+      auto once = pad(test_case.first);
+      assert(pad(once) == once);
+      assert(pad(test_case.second) == once);
+    }
+    for (auto&& test_case : url_test_cases) {
+      auto once = pad<base64url>(test_case.second);
+      assert(pad<base64url>(once) == once);
+    }
+  }
+
   return EXIT_SUCCESS;
 }
