@@ -12,6 +12,7 @@
  * @brief 本头文件包含解析配置文件实现，
  * 这个文件是 header-only 且 self-contained 的，
  * 可以随便复制到任何路径下直接进行使用。
+ * @note 兼容 C++11 及以上标准。
  * @date 2026-06-09
  *
  * @copyright Copyright (c) 2026
@@ -19,13 +20,12 @@
  */
 
 #include <cctype>
+#include <cstddef>
 #include <fstream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <string_view>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -51,8 +51,8 @@ namespace betools {
  */
 class Config {
  public:
-  static inline constexpr bool PARSE_FROM_FILE{true};
-  static inline constexpr bool PARSE_FROM_STRING{false};
+  static constexpr bool PARSE_FROM_FILE = true;
+  static constexpr bool PARSE_FROM_STRING = false;
 
  public:
   /**
@@ -68,13 +68,13 @@ class Config {
   Config(const std::string& cfg, bool is_from_file = PARSE_FROM_FILE) {
     std::unique_ptr<std::istream> in;
     if (is_from_file) {
-      auto fs = std::make_unique<std::ifstream>(cfg);
+      std::unique_ptr<std::ifstream> fs(new std::ifstream(cfg));
       if (!fs->is_open()) {
         throw std::runtime_error("Config::Config - file not found: " + cfg);
       }
       in = std::move(fs);
     } else {
-      in = std::make_unique<std::istringstream>(cfg);
+      in.reset(new std::istringstream(cfg));
     }
     parse_stream(*in);
   }
@@ -102,12 +102,14 @@ class Config {
                                      char delim = '|') const {
     auto it = configs_.find(key);
     if (it == configs_.end()) return {};
-    auto elems = split(it->second, delim);
+    const std::string& val = it->second;
+    auto elems = split(val, delim);
     std::vector<std::string> result;
     result.reserve(elems.size());
-    for (auto&& elem : elems) {
-      auto trim_elem = trim(elem);
-      result.emplace_back(trim_elem.data(), trim_elem.size());
+    for (const auto& elem : elems) {
+      auto trim_elem = trim(val, elem.first, elem.second);
+      result.push_back(
+          val.substr(trim_elem.first, trim_elem.second - trim_elem.first));
     }
     return result;
   }
@@ -139,94 +141,13 @@ class Config {
     if (it == configs_.end()) {
       throw std::runtime_error("Config::GetAs - key not found: " + key);
     }
-    const std::string& val = it->second;
 
     /**
-     * 有关 char 和 unsigned char 这两个类型，
-     * 一般这两个类型都是作为字符去读取的，
-     * 所以这里不进行这两类型的特化分支，
-     * 由最后的流操作兜底。
+     * 具体类型转换由 convert 的重载分发完成；
+     * char 和 unsigned char 一般作为字符去读取，
+     * 所以不提供专门分支，由 convert 的模板兜底（流提取）处理。
      */
-
-    // std::string
-    if constexpr (std::is_same_v<T, std::string>) {
-      return val;
-    }
-    // short
-    else if constexpr (std::is_same_v<T, short>) {
-      return static_cast<short>(std::stoi(val));
-    }
-    // int
-    else if constexpr (std::is_same_v<T, int>) {
-      return std::stoi(val);
-    }
-    // long
-    else if constexpr (std::is_same_v<T, long>) {
-      return std::stol(val);
-    }
-    // long long
-    else if constexpr (std::is_same_v<T, long long>) {
-      return std::stoll(val);
-    }
-    // unsigned short
-    else if constexpr (std::is_same_v<T, unsigned short>) {
-      return static_cast<unsigned short>(std::stoul(val));
-    }
-    // unsigned int
-    else if constexpr (std::is_same_v<T, unsigned int>) {
-      return static_cast<unsigned int>(std::stoul(val));
-    }
-    // unsigned long
-    else if constexpr (std::is_same_v<T, unsigned long>) {
-      return std::stoul(val);
-    }
-    // unsigned long long
-    else if constexpr (std::is_same_v<T, unsigned long long>) {
-      return std::stoull(val);
-    }
-    // float
-    else if constexpr (std::is_same_v<T, float>) {
-      return std::stof(val);
-    }
-    // double
-    else if constexpr (std::is_same_v<T, double>) {
-      return std::stod(val);
-    }
-    // long double
-    else if constexpr (std::is_same_v<T, long double>) {
-      return std::stold(val);
-    }
-    // bool
-    else if constexpr (std::is_same_v<T, bool>) {
-      auto lower_val = to_lower(val);
-      if (lower_val == "1" || lower_val == "true" || lower_val == "yes" ||
-          lower_val == "on" || lower_val == "y" || lower_val == "enable" ||
-          lower_val == "enabled")
-        return true;
-      if (lower_val == "0" || lower_val == "false" || lower_val == "no" ||
-          lower_val == "off" || lower_val == "n" || lower_val == "disable" ||
-          lower_val == "disabled" || lower_val == "ignore" ||
-          lower_val == "notfound")
-        return false;
-      throw std::runtime_error("Config::GetAs - invalid bool for key '" + key +
-                               "' = " + val);
-    }
-    // others
-    else {
-#if __cplusplus >= 202002L
-      // C++20 的约束可以轻松的检查某些操作是否能够进行
-      static_assert(
-          requires(std::istream& is, T& t) { is >> t; },
-          "Config::GetAs - T must support stream extraction (operator>>)");
-#endif
-      std::istringstream iss(val);
-      T result{};
-      if (!(iss >> result)) {
-        throw std::runtime_error("Config::GetAs - failed to convert key '" +
-                                 key + "' = " + val);
-      }
-      return result;
-    }
+    return convert(static_cast<T*>(nullptr), key, it->second);
   }
 
  private:
@@ -241,48 +162,54 @@ class Config {
       // 跳过空行和整行注释
       if (raw_line.empty()) continue;
       if (raw_line.front() == '#') continue;
-      // 去掉 '#' 后的注释
-      auto end_pos = raw_line.find('#');
+      // 去掉 '#' 后的注释，end_pos 为有效内容的结束下标
+      std::size_t end_pos = raw_line.find('#');
       if (end_pos == std::string::npos) end_pos = raw_line.size();
-      std::string_view line(raw_line.c_str(), end_pos);
-      // 查找 '='
-      auto eq_pos = line.find('=');
-      bool is_has_eq = (eq_pos != std::string_view::npos);
-      // 获取 raw_key 和 raw_value
-      std::string_view raw_key = is_has_eq ? line.substr(0, eq_pos) : line;
-      std::string_view raw_value = is_has_eq ? line.substr(eq_pos + 1) : "";
+      // 查找 '='，仅在注释之前查找
+      std::size_t eq_pos = raw_line.find('=');
+      bool is_has_eq = (eq_pos != std::string::npos && eq_pos < end_pos);
+      // 获取 raw_key 和 raw_value 的下标范围
+      std::size_t key_begin = 0;
+      std::size_t key_end = is_has_eq ? eq_pos : end_pos;
+      std::size_t value_begin = is_has_eq ? eq_pos + 1 : end_pos;
+      std::size_t value_end = end_pos;
       // 去掉首尾空白获取 key 和 value
-      std::string_view key = trim(raw_key);
-      std::string_view value = trim(raw_value);
+      auto key = trim(raw_line, key_begin, key_end);
+      auto value = trim(raw_line, value_begin, value_end);
       // 跳过空 key
-      if (key.empty()) continue;
+      if (key.first == key.second) continue;
       // 存储配置项，相同 key 以最后一个为准
-      configs_[std::string(key)] = std::string(value);
+      configs_[raw_line.substr(key.first, key.second - key.first)] =
+          raw_line.substr(value.first, value.second - value.first);
     }
   }
 
   /**
-   * @brief 去除 string_view 首尾空白字符
+   * @brief 计算字符串指定区间去除首尾空白后的下标范围
    *
-   * @param sv 待处理的字符串视图
-   * @return 去除首尾空白后的子视图
+   * @param s 待处理的字符串
+   * @param begin 区间起始下标（包含）
+   * @param end 区间结束下标（不包含）
+   * @return 去除首尾空白后的下标范围 `[first, second)`
    */
-  std::string_view trim(std::string_view sv) const {
-    while (!sv.empty() && is_space(sv.front())) sv.remove_prefix(1);
-    while (!sv.empty() && is_space(sv.back())) sv.remove_suffix(1);
-    return sv;
+  static std::pair<std::size_t, std::size_t> trim(const std::string& s,
+                                                  std::size_t begin,
+                                                  std::size_t end) {
+    while (begin < end && is_space(s[begin])) ++begin;
+    while (end > begin && is_space(s[end - 1])) --end;
+    return std::make_pair(begin, end);
   }
 
   /**
-   * @brief 将 string_view 转换为全小写 std::string
+   * @brief 将字符串转换为全小写 std::string
    *
-   * @param sv 待转换的字符串视图
+   * @param s 待转换的字符串
    * @return 全小写的 std::string
    */
-  static std::string to_lower(std::string_view sv) {
+  static std::string to_lower(const std::string& s) {
     std::string result;
-    result.reserve(sv.size());
-    for (char c : sv) result += to_lower(c);
+    result.reserve(s.size());
+    for (char c : s) result += to_lower(c);
     return result;
   }
 
@@ -307,21 +234,126 @@ class Config {
   }
 
   /**
-   * @brief 把一个 string_view 通过分隔符 delim 分隔为多个视图
+   * @brief 把一个字符串通过分隔符 delim 分隔为多个下标范围
    *
-   * @param sv 待处理的 string_view
+   * @param s 待处理的字符串
    * @param delim 分隔符
-   * @return std::vector<std::string_view>
+   * @return 每个元素的下标范围 `[first, second)`（未去除首尾空白），
+   *         至少包含一个元素
    */
-  std::vector<std::string_view> split(std::string_view sv, char delim) const {
-    std::vector<std::string_view> result;
+  static std::vector<std::pair<std::size_t, std::size_t>> split(
+      const std::string& s, char delim) {
+    std::vector<std::pair<std::size_t, std::size_t>> result;
     std::size_t start = 0;
     std::size_t pos;
-    while ((pos = sv.find(delim, start)) != std::string_view::npos) {
-      result.push_back(sv.substr(start, pos - start));
+    while ((pos = s.find(delim, start)) != std::string::npos) {
+      result.push_back(std::make_pair(start, pos));
       start = pos + 1;
     }
-    result.push_back(sv.substr(start));  // 最后一段
+    result.push_back(std::make_pair(start, s.size()));  // 最后一段
+    return result;
+  }
+
+  /**
+   * @brief GetAs 的具体类型转换实现（重载分发，兼容 C++11）
+   *
+   * 每个受支持的类型对应一个非模板重载，优先级高于模板兜底版本；
+   * 模板版本用于 char / unsigned char 及自定义类型（流提取）。
+   * 参数 tag 仅用于重载分发，key 仅用于错误提示信息。
+   */
+  static std::string convert(std::string* /*tag*/, const std::string& /*key*/,
+                             const std::string& val) {
+    return val;
+  }
+
+  static short convert(short* /*tag*/, const std::string& /*key*/,
+                       const std::string& val) {
+    return static_cast<short>(std::stoi(val));
+  }
+
+  static int convert(int* /*tag*/, const std::string& /*key*/,
+                     const std::string& val) {
+    return std::stoi(val);
+  }
+
+  static long convert(long* /*tag*/, const std::string& /*key*/,
+                      const std::string& val) {
+    return std::stol(val);
+  }
+
+  static long long convert(long long* /*tag*/, const std::string& /*key*/,
+                           const std::string& val) {
+    return std::stoll(val);
+  }
+
+  static unsigned short convert(unsigned short* /*tag*/,
+                                const std::string& /*key*/,
+                                const std::string& val) {
+    return static_cast<unsigned short>(std::stoul(val));
+  }
+
+  static unsigned int convert(unsigned int* /*tag*/, const std::string& /*key*/,
+                              const std::string& val) {
+    return static_cast<unsigned int>(std::stoul(val));
+  }
+
+  static unsigned long convert(unsigned long* /*tag*/,
+                               const std::string& /*key*/,
+                               const std::string& val) {
+    return std::stoul(val);
+  }
+
+  static unsigned long long convert(unsigned long long* /*tag*/,
+                                    const std::string& /*key*/,
+                                    const std::string& val) {
+    return std::stoull(val);
+  }
+
+  static float convert(float* /*tag*/, const std::string& /*key*/,
+                       const std::string& val) {
+    return std::stof(val);
+  }
+
+  static double convert(double* /*tag*/, const std::string& /*key*/,
+                        const std::string& val) {
+    return std::stod(val);
+  }
+
+  static long double convert(long double* /*tag*/, const std::string& /*key*/,
+                             const std::string& val) {
+    return std::stold(val);
+  }
+
+  static bool convert(bool* /*tag*/, const std::string& key,
+                      const std::string& val) {
+    std::string lower_val = to_lower(val);
+    if (lower_val == "1" || lower_val == "true" || lower_val == "yes" ||
+        lower_val == "on" || lower_val == "y" || lower_val == "enable" ||
+        lower_val == "enabled")
+      return true;
+    if (lower_val == "0" || lower_val == "false" || lower_val == "no" ||
+        lower_val == "off" || lower_val == "n" || lower_val == "disable" ||
+        lower_val == "disabled" || lower_val == "ignore" ||
+        lower_val == "notfound")
+      return false;
+    throw std::runtime_error("Config::GetAs - invalid bool for key '" + key +
+                             "' = " + val);
+  }
+
+  template <typename T>
+  static T convert(T* /*tag*/, const std::string& key, const std::string& val) {
+#if __cplusplus >= 202002L
+    // C++20 的约束可以轻松的检查某些操作是否能够进行
+    static_assert(
+        requires(std::istream& is, T& t) { is >> t; },
+        "Config::GetAs - T must support stream extraction (operator>>)");
+#endif
+    std::istringstream iss(val);
+    T result{};
+    if (!(iss >> result)) {
+      throw std::runtime_error("Config::GetAs - failed to convert key '" + key +
+                               "' = " + val);
+    }
     return result;
   }
 
