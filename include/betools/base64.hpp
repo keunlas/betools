@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
-namespace betools::base::alphabet {
+namespace betools {
+namespace base {
 
+namespace alphabet {
 /**
  * @brief Base64 编码字符集，
  * 提供合法的 Base64 字符的正向与反向映射表及其填充字符串。
@@ -104,10 +106,10 @@ struct base64url {
     return fill;
   }
 };
+}  // namespace alphabet
 
-}  // namespace betools::base::alphabet
-
-namespace betools::base::base64::details {
+namespace base64 {
+namespace details {
 
 /**
  * @brief base64::encode 的具体实现
@@ -243,9 +245,10 @@ inline std::string trim(const std::string& base_string,
   return base_string.substr(0, pos);
 }
 
-}  // namespace betools::base::base64::details
+}  // namespace details
+}  // namespace base64
 
-namespace betools::base::base64 {
+namespace base64 {
 
 /**
  * @brief 将二进制数据编码为 Base64 字符串。
@@ -302,6 +305,9 @@ std::string trim(const std::string& base_string) {
   return details::trim(base_string, Alphabets::fill());
 }
 
-}  // namespace betools::base::base64
+}  // namespace base64
+
+}  // namespace base
+}  // namespace betools
 
 #endif  // !KEUNLAS_BETOOLS_BASE64_HPP_

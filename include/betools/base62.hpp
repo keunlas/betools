@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
-namespace betools::base::alphabet {
+namespace betools {
+namespace base {
 
+namespace alphabet {
 /**
  * @brief Base62 编码字符集，提供 0-9、A-Z、a-z 共 62 个字符的正向与反向映射表。
  */
@@ -59,11 +61,10 @@ struct base62 {
     return rdata;
   }
 };
+}  // namespace alphabet
 
-}  // namespace betools::base::alphabet
-
-namespace betools::base::base62::details {
-
+namespace base62 {
+namespace details {
 /**
  * @brief base62::encode 的具体实现
  * @attention 请避免直接使用 details 命名空间下的接口或代码，
@@ -154,11 +155,10 @@ inline std::string decode(const std::string& str,
   result.append(bignum.rbegin(), bignum.rend());
   return result;
 }
+}  // namespace details
+}  // namespace base62
 
-}  // namespace betools::base::base62::details
-
-namespace betools::base::base62 {
-
+namespace base62 {
 /**
  * @brief 将二进制数据编码为 Base62 字符串。
  * @attention 该方法会将输入的二进制数据当作大端序进行处理。
@@ -185,6 +185,9 @@ std::string decode(const std::string& base62_string) {
                          Alphabets::data()[0]);
 }
 
-}  // namespace betools::base::base62
+}  // namespace base62
+
+}  // namespace base
+}  // namespace betools
 
 #endif  // !KEUNLAS_BETOOLS_BASE62_HPP_
