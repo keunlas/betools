@@ -30,7 +30,7 @@ namespace base {
 namespace alphabet {
 /**
  * @brief Base64 编码字符集，
- * 提供合法的 Base64 字符的正向与反向映射表及其填充字符串。
+ * 提供合法的 Base64 字符的正向与反向映射表及其填充表示。
  */
 struct base64 {
   static const std::array<char, 64>& data() noexcept {
@@ -61,8 +61,13 @@ struct base64 {
          -1, -1, -1, -1}};
     return rdata;
   }
-  static const std::string& fill() noexcept {
-    static const std::string fill{"="};
+  /**
+   * @brief 合法的填充表示列表。
+   * @note 第一个元素是编码与补全时使用的规范填充串，
+   * 其余元素仅在解码与修剪时作为等价表示被接受。
+   */
+  static const std::vector<std::string>& fill() noexcept {
+    static const std::vector<std::string> fill{"="};
     return fill;
   }
 };
@@ -70,7 +75,7 @@ struct base64 {
 /**
  * @brief Base64 编码字符集,
  * url-safe 并且 filename-safe，
- * 提供合法的 Base64 字符的正向与反向映射表及其填充字符串。
+ * 提供合法的 Base64 字符的正向与反向映射表及其填充表示。
  */
 struct base64url {
   static const std::array<char, 64>& data() noexcept {
@@ -101,8 +106,13 @@ struct base64url {
          -1, -1, -1, -1}};
     return rdata;
   }
-  static const std::string& fill() noexcept {
-    static const std::string fill{"%3d"};
+  /**
+   * @brief 合法的填充表示列表。
+   * @note 第一个元素 "%3d" 是编码与补全时使用的规范填充串，
+   * "%3D" 是解码与修剪时额外接受的等价表示。
+   */
+  static const std::vector<std::string>& fill() noexcept {
+    static const std::vector<std::string> fill{"%3d", "%3D"};
     return fill;
   }
 };
@@ -112,14 +122,89 @@ namespace base64 {
 namespace details {
 
 /**
+ * @brief 取得编码与补全时使用的规范填充串。
+ *
+ * fill() 的第一个元素是规范填充表示，其余元素只是解码时接受的等价表示。
+ *
+ * @param fill 字符集定义的填充表示列表。
+ * @return 规范填充串；列表为空时返回空串，表示不进行填充。
+ */
+inline const std::string& canonical_fill(
+    const std::vector<std::string>& fill) noexcept {
+  static const std::string empty;
+  return fill.empty() ? empty : fill.front();
+}
+
+/**
+ * @brief 查找字符串中最早出现的填充表示。
+ *
+ * @param base_string 完整的 Base64 编码字符串。
+ * @param fill 所有合法的填充表示。
+ * @return 填充部分的起始位置；不存在填充时返回 std::string::npos。
+ */
+inline std::size_t find_fill(const std::string& base_string,
+                             const std::vector<std::string>& fill) noexcept {
+  std::size_t pos = std::string::npos;
+  for (const auto& padding : fill) {
+    if (padding.empty()) continue;
+    auto found = base_string.find(padding);
+    if (found < pos) pos = found;
+  }
+  return pos;
+}
+
+/**
+ * @brief 拆分 Base64 字符串的数据部分与填充部分。
+ *
+ * 从最早的填充表示开始，按填充单元逐个向后匹配，
+ * 因此可以兼容多种等价的填充表示（例如 "%3d" 与 "%3D" 混用）。
+ *
+ * @param base_string 完整的 Base64 编码字符串。
+ * @param fill 所有合法的填充表示。
+ * @param data_size [out] 数据部分的长度。
+ * @param padding_count [out] 尾部填充单元的个数，0 表示没有填充。
+ * @return 填充部分是否全部由合法的填充表示构成。
+ */
+inline bool split_padding(const std::string& base_string,
+                          const std::vector<std::string>& fill,
+                          std::size_t& data_size,
+                          std::size_t& padding_count) noexcept {
+  data_size = base_string.size();
+  padding_count = 0;
+
+  const auto pos = find_fill(base_string, fill);
+  if (pos == std::string::npos) return true;
+
+  data_size = pos;
+  auto index = pos;
+  while (index < base_string.size()) {
+    std::size_t matched = 0;
+    for (const auto& padding : fill) {
+      if (padding.empty()) continue;
+      if (base_string.compare(index, padding.size(), padding) == 0) {
+        matched = std::max(matched, padding.size());
+      }
+    }
+    if (matched == 0) return false;
+    index += matched;
+    ++padding_count;
+  }
+  return true;
+}
+
+/**
  * @brief base64::encode 的具体实现
  * @attention 请避免直接使用 details 命名空间下的接口或代码，
  * 它们随时可能进行大幅更改
+ *
+ * @param fill 字符集定义的填充表示列表，编码时使用其中的规范填充串。
  */
 inline std::string encode(const std::string& binary_data,
                           const std::array<char, 64>& alphabet,
-                          const std::string& fill) {
+                          const std::vector<std::string>& fill) {
   if (binary_data.empty()) return "";
+
+  const std::string& padding = canonical_fill(fill);
 
   std::string result;
   result.reserve(((binary_data.size() + 2) / 3) * 4);
@@ -138,13 +223,14 @@ inline std::string encode(const std::string& binary_data,
     auto index1 = ((*iter) & 0xfc) >> 2;
     auto index2 = (((*iter) & 0x03) << 4);
     result.append({alphabet[index1], alphabet[index2]});
-    result.append(fill + fill);
+    result += padding;
+    result += padding;
   } else if (remains == 2) {
     auto index1 = ((*iter) & 0xfc) >> 2;
     auto index2 = (((*iter) & 0x03) << 4) + (((*(iter + 1)) & 0xf0) >> 4);
     auto index3 = (((*(iter + 1)) & 0x0f) << 2);
     result.append({alphabet[index1], alphabet[index2], alphabet[index3]});
-    result.append(fill);
+    result += padding;
   }
 
   return result;
@@ -154,69 +240,54 @@ inline std::string encode(const std::string& binary_data,
  * @brief base64::decode 的具体实现
  * @attention 请避免直接使用 details 命名空间下的接口或代码，
  * 它们随时可能进行大幅更改
+ *
+ * @param fill 字符集定义的填充表示列表，
+ * 其中任意一种表示都会被识别为填充。
  */
 inline std::string decode(const std::string& base_string,
                           const std::array<int8_t, 256>& rdata,
-                          const std::string& fill) {
+                          const std::vector<std::string>& fill) {
   if (base_string.empty()) return "";
 
+  std::size_t data_size = 0;
+  std::size_t padding_count = 0;
+  if (!split_padding(base_string, fill, data_size, padding_count)) {
+    return "";
+  }
+
+  // 合法的数据部分长度只能是 4n、4n+2 或 4n+3，
+  // 且与填充单元个数共同组成完整的 4 字符分组。
+  const std::size_t remains = data_size % 4;
+  if (remains == 1 || padding_count > 2 ||
+      (padding_count != 0 && remains + padding_count != 4)) {
+    return "";
+  }
+
   std::string result;
-  result.reserve(((base_string.size() + 3) / 4) * 3);
+  result.reserve((data_size / 4) * 3 +
+                 (remains == 2 ? 1 : (remains == 3 ? 2 : 0)));
 
-  size_t paddings = 0;
-  size_t padlen = 0;
-  auto pad_pos = base_string.find(fill);
-  if (pad_pos != std::string_view::npos) {
-    padlen = base_string.size() - pad_pos;
-    paddings = padlen / fill.size();
-  }
+  for (std::size_t i = 0; i + 1 < data_size; i += 4) {
+    auto index1 = rdata[static_cast<uint8_t>(base_string[i])];
+    auto index2 = rdata[static_cast<uint8_t>(base_string[i + 1])];
+    if (index1 < 0 || index2 < 0) return "";
 
-  auto iter = base_string.begin();
-  for (; iter + 4 < base_string.end() - padlen; iter += 4) {
-    auto index1 = rdata[static_cast<uint8_t>(*iter)];
-    auto index2 = rdata[static_cast<uint8_t>(*(iter + 1))];
-    auto index3 = rdata[static_cast<uint8_t>(*(iter + 2))];
-    auto index4 = rdata[static_cast<uint8_t>(*(iter + 3))];
+    result.push_back(static_cast<char>((index1 << 2) | (index2 >> 4)));
 
-    if (index1 < 0 || index2 < 0 || index3 < 0 || index4 < 0) {
-      return "";
-    }
+    if (i + 2 >= data_size) break;
 
-    auto char1 = ((index1 & 0x3f) << 2) | ((index2 & 0x30) >> 4);
-    auto char2 = ((index2 & 0x0f) << 4) | ((index3 & 0x3c) >> 2);
-    auto char3 = ((index3 & 0x03) << 6) | (index4 & 0x3f);
+    auto index3 = rdata[static_cast<uint8_t>(base_string[i + 2])];
+    if (index3 < 0) return "";
 
-    result.append({static_cast<char>(char1), static_cast<char>(char2),
-                   static_cast<char>(char3)});
-  }
+    result.push_back(static_cast<char>(((index2 & 0x0f) << 4) | (index3 >> 2)));
 
-  if (iter == base_string.end()) {
-    return result;
-  }
+    if (i + 3 >= data_size) break;
 
-  size_t remains = 0;
-  if (paddings == 0) {
-    remains = base_string.end() - iter;
-  } else {
-    remains = 4 - paddings;
-  }
+    auto index4 = rdata[static_cast<uint8_t>(base_string[i + 3])];
+    if (index4 < 0) return "";
 
-  if (remains > 1) {
-    auto char1 = ((rdata[static_cast<uint8_t>(*iter)] & 0x3f) << 2) |
-                 ((rdata[static_cast<uint8_t>(*(iter + 1))] & 0x30) >> 4);
-    result.push_back(static_cast<char>(char1));
-  }
-
-  if (remains > 2) {
-    auto char2 = ((rdata[static_cast<uint8_t>(*(iter + 1))] & 0x0f) << 4) |
-                 ((rdata[static_cast<uint8_t>(*(iter + 2))] & 0x3c) >> 2);
-    result.push_back(static_cast<char>(char2));
-  }
-
-  if (remains > 3) {
-    auto char3 = ((rdata[static_cast<uint8_t>(*(iter + 2))] & 0x03) << 6) |
-                 (rdata[static_cast<uint8_t>(*(iter + 3))] & 0x3f);
-    result.push_back(static_cast<char>(char3));
+    result.push_back(
+        static_cast<char>(((index3 & 0x03) << 6) | (index4 & 0x3f)));
   }
 
   return result;
@@ -226,23 +297,28 @@ inline std::string decode(const std::string& base_string,
  * @brief base64::pad 的具体实现
  * @attention 请避免直接使用 details 命名空间下的接口或代码，
  * 它们随时可能进行大幅更改
+ *
+ * @param fill 字符集定义的填充表示列表，补全时使用其中的规范填充串。
  */
 inline std::string pad(const std::string& base_string,
-                       const std::string& fill) {
+                       const std::vector<std::string>& fill) {
+  const std::string& padding_unit = canonical_fill(fill);
+
   std::string padding;
   for (std::size_t i = 0; i < (4 - base_string.size() % 4) % 4; ++i) {
-    padding += fill;
+    padding += padding_unit;
   }
   return base_string + padding;
 }
 
 /**
  * @brief base64::trim 的具体实现
+ *
+ * @param fill 字符集定义的填充表示列表，任意一种表示都会被去除。
  */
 inline std::string trim(const std::string& base_string,
-                        const std::string& fill) {
-  auto pos = base_string.find(fill);
-  return base_string.substr(0, pos);
+                        const std::vector<std::string>& fill) {
+  return base_string.substr(0, find_fill(base_string, fill));
 }
 
 }  // namespace details
@@ -267,7 +343,10 @@ std::string encode(const std::string& binary_data) {
  *
  * @tparam Alphabets 编码字符集类型，默认为 alphabet::base64。
  * @param base_string 待解码的字符串。
- * @return 解码后的二进制数据；若包含非法字符则返回空字符串。
+ * @return 解码后的二进制数据；
+ * 若包含非法字符、长度不合法或者填充不合法则返回空字符串。
+ *
+ * @note 填充部分可以是 Alphabets::fill() 中的任意一种等价表示。
  */
 template <typename Alphabets = alphabet::base64>
 std::string decode(const std::string& base_string) {
@@ -276,6 +355,9 @@ std::string decode(const std::string& base_string) {
 
 /**
  * @brief 给修剪过的 Base64 编码字符串重新添加上填充。
+ *
+ * @note 补全时使用 Alphabets::fill() 中的第一个元素作为填充串。
+ *
  * @attention 当填充符长度大于 1 时，
  * 请确保传入的 base_string 一定是修剪过后的。
  * 否则可能会获得错误的结果。
@@ -299,6 +381,7 @@ std::string pad(const std::string& base_string) {
  *
  * @note 在一些 url-safe 或者 filename-safe 的 Base64 标准中，
  * 会要求去掉末尾的填充字符。
+ * 另外，Alphabets::fill() 中的任意一种等价填充表示都会被去除。
  */
 template <typename Alphabets = alphabet::base64>
 std::string trim(const std::string& base_string) {
