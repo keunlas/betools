@@ -61,9 +61,11 @@ class ThreadPool {
           bool not_timeout = task_queue_.TryDequeueFor(milliseconds(10), task);
           if (not_timeout) task();
         }
-        if (exit_flag != ExitFlag::TASKS_DROP) {
+        if (exit_flag == ExitFlag::TASKS_DONE) {
           std::function<void()> task;
           while (task_queue_.TryDequeue(task)) task();
+        } else if (exit_flag == ExitFlag::TASKS_DROP) {
+          // do not do anything
         }
       });
     }

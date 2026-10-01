@@ -1,22 +1,27 @@
 cmake_minimum_required(VERSION 3.21)
-project(betools VERSION 1.6.4)
+project(betools VERSION 2.0.0)
 
-include(cmake/build_option.cmake)
-include(cmake/compile_setting.cmake)
+# 控制是否编译 test 案例和引入 CTest 工具
+option(${PROJECT_NAME}_BUILD_TEST "是否编译测试代码" ON)
 
+# 控制是否编译 example 案例
+option(${PROJECT_NAME}_BUILD_EXAMPLE "是否编译示例代码" ON)
+
+# 接口目标
 add_library(betools_interface INTERFACE)
-target_include_directories(betools_interface INTERFACE ${PROJECT_SOURCE_DIR}/deps/include)
 target_include_directories(betools_interface INTERFACE ${PROJECT_SOURCE_DIR}/include)
-# target_compile_features(betools_interface INTERFACE cxx_std_23)
 add_library(betools::betools ALIAS betools_interface)
 
+# 测试案例
 if(${PROJECT_NAME}_BUILD_TEST)
   add_subdirectory(test)
 endif()
 
+# 示例代码
 if(${PROJECT_NAME}_BUILD_EXAMPLE)
   add_subdirectory(example)
 endif()
 
-include(cmake/install.cmake)
-include(cmake/cpack.cmake)
+# 打印调试信息
+message(STATUS "${PROJECT_NAME}_BUILD_TEST: ${${PROJECT_NAME}_BUILD_TEST}")
+message(STATUS "${PROJECT_NAME}_BUILD_EXAMPLE: ${${PROJECT_NAME}_BUILD_EXAMPLE}")

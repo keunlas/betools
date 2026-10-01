@@ -1,6 +1,7 @@
 *
 !*/
 
+/tmp/
 /build/
 /release/
 /bin/
@@ -9,25 +10,18 @@
 !.gitignore
 !.gitkeep
 !.clang-format
-
+!/.github/**/*.yml
 !README.md
 !LICENSE
 !Doxyfile
 !CMakeLists.txt
-
-!/.github/**/*.yml
-!/cmake/**/*.cmake
-
 !/deps/**/*
-!/docs/**/*
-/docs/html/
+
+!/include/**/*.h
+!/include/**/*.hpp
 
 !/test/**/*
 !/example/**/*
 
-!/include/**/*.h
-!/include/**/*.hpp
-!/src/**/*.c
-!/src/**/*.cpp
-
-!/trash/**/*
+!/docs/**/*
+/docs/html/
