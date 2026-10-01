@@ -215,21 +215,27 @@ inline std::string encode(const std::string& binary_data,
     auto index2 = (((*iter) & 0x03) << 4) + (((*(iter + 1)) & 0xf0) >> 4);
     auto index3 = (((*(iter + 1)) & 0x0f) << 2) + (((*(iter + 2)) & 0xc0) >> 6);
     auto index4 = ((*(iter + 2)) & 0x3f);
-    result.append({alphabet[index1], alphabet[index2], alphabet[index3],
-                   alphabet[index4]});
+    result.push_back(alphabet[index1]);
+    result.push_back(alphabet[index2]);
+    result.push_back(alphabet[index3]);
+    result.push_back(alphabet[index4]);
   }
 
-  if (auto remains = binary_data.end() - iter; remains == 1) {
+  auto remains = binary_data.end() - iter;
+  if (remains == 1) {
     auto index1 = ((*iter) & 0xfc) >> 2;
     auto index2 = (((*iter) & 0x03) << 4);
-    result.append({alphabet[index1], alphabet[index2]});
+    result.push_back(alphabet[index1]);
+    result.push_back(alphabet[index2]);
     result += padding;
     result += padding;
   } else if (remains == 2) {
     auto index1 = ((*iter) & 0xfc) >> 2;
     auto index2 = (((*iter) & 0x03) << 4) + (((*(iter + 1)) & 0xf0) >> 4);
     auto index3 = (((*(iter + 1)) & 0x0f) << 2);
-    result.append({alphabet[index1], alphabet[index2], alphabet[index3]});
+    result.push_back(alphabet[index1]);
+    result.push_back(alphabet[index2]);
+    result.push_back(alphabet[index3]);
     result += padding;
   }
 
