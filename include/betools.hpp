@@ -13,7 +13,8 @@
  *
  */
 
-#include "betools/base.hpp"
+#include "betools/base62.hpp"
+#include "betools/base64.hpp"
 #include "betools/config.hpp"
 #include "betools/lock_based_queue.hpp"
 #include "betools/singleton.hpp"

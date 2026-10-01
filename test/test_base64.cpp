@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-#include "betools/base.hpp"
+#include "betools/base64.hpp"
 
 // ============================================================================
 // Base64 标准编码测试用例 (RFC 4648)

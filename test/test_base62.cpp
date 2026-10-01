@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-#include "betools/base.hpp"
+#include "betools/base62.hpp"
 
 static std::vector<std::pair<std::string, std::string>> test_cases{
     // ========== 基本边界情况 ==========
