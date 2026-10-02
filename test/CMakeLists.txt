@@ -31,22 +31,17 @@ endfunction()
 # add_ctest_executable(my_ctest2 my_ctest2.cpp my_test2a.cpp code.cpp)
 
 add_ctest_executable(test_base62 test_base62.cpp)
-target_link_libraries(test_base62 PRIVATE betools::betools)
 
 add_ctest_executable(test_base64 test_base64.cpp)
-target_link_libraries(test_base64 PRIVATE betools::betools)
 
 add_ctest_executable(test_lock_based_queue test_lock_based_queue.cpp)
-target_link_libraries(test_lock_based_queue PRIVATE betools::betools)
 
 add_ctest_executable(test_threadpool test_threadpool.cpp)
-target_link_libraries(test_threadpool PRIVATE betools::betools)
+target_compile_features(test_threadpool PRIVATE cxx_std_20)
 
 add_ctest_executable(test_config test_config.cpp)
-target_link_libraries(test_config PRIVATE betools::betools)
 
 add_ctest_executable(test_singleton test_singleton.cpp)
-target_link_libraries(test_singleton PRIVATE betools::betools)
 
 
 
