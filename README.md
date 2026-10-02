@@ -4,14 +4,14 @@ Betools 是一系列纯头文件库（Header-Only）集合形式的 C++ 小工�
 
 ## 工具列表
 
-| 工具 | 头文件 | 简介 | 详细文档 |
-|------|--------|------|----------|
-| **Base** | `betools/base.hpp` | Base62 / Base64 / Base64URL 编解码，支持自定义字符集与填充处理 | [docs/base.md](docs/base.md) |
-| **Config** | `betools/config.hpp` | 轻量级配置文件解析器，支持泛型类型转换、行内注释和大小写不敏感的布尔值 | [docs/config.md](docs/config.md) |
-| **Endian** | `betools/endian.h` | 字节序转换接口（`htobe16` / `betoh16` / `htole16` / `letoh16` 等），按语言、编译器与平台自动分类并转调已有设施 | [docs/endian.md](docs/endian.md) |
-| **LockBasedQueue** | `betools/lock_based_queue.hpp` | 线程安全的有界阻塞队列，支持单元素/批量入队、原地构造和超时等待 | [docs/lock_based_queue.md](docs/lock_based_queue.md) |
-| **Singleton** | `betools/singleton.hpp` | 单例持有者模板，通过 Tag 区分同类型多实例，支持任意构造参数完美转发 | [docs/singleton.md](docs/singleton.md) |
-| **ThreadPool** | `betools/threadpool.hpp` | 固定大小的线程池，支持任务提交（含返回值）、可配置退出策略 | [docs/threadpool.md](docs/threadpool.md) |
+| 工具 | 头文件 | 最低标准 | 简介 | 详细文档 |
+|------|--------|----------|------|----------|
+| **Base62** | `betools/base62.hpp` | C++11 | Base62 编解码，输入按大端序处理，保留前导零字节 | [docs/base62.md](docs/base62.md) |
+| **Base64** | `betools/base64.hpp` | C++11 | Base64 / Base64URL 编解码，支持填充补全（pad）与修剪（trim） | [docs/base64.md](docs/base64.md) |
+| **Config** | `betools/config.hpp` | C++11 | 轻量级配置文件解析器，支持泛型类型转换、多元素取值、行内注释和大小写不敏感的布尔值 | [docs/config.md](docs/config.md) |
+| **LockBasedQueue** | `betools/lock_based_queue.hpp` | C++11 | 线程安全的有界阻塞队列，支持单元素/批量入队、原地构造和超时等待 | [docs/lock_based_queue.md](docs/lock_based_queue.md) |
+| **Singleton** | `betools/singleton.hpp` | C++11 | 单例持有者模板，通过 Tag 区分同类型多实例，支持任意构造参数完美转发 | [docs/singleton.md](docs/singleton.md) |
+| **ThreadPool** | `betools/threadpool.hpp` | C++20 | 固定大小的线程池，支持任务提交（含返回值）、可配置退出策略 | [docs/threadpool.md](docs/threadpool.md) |
 
 ## 安装
 
@@ -40,8 +40,8 @@ target_link_libraries(my_app PRIVATE betools::betools)
 你可以按需引入单个工具，也可以通过汇总头文件一次性引入所有工具：
 
 ```cpp
-// 方式一：仅引入 base 工具
-#include "betools/base.hpp"
+// 方式一：仅引入需要的工具
+#include "betools/base64.hpp"
 
 // 方式二：一次性引入所有 betools 工具
 #include "betools.hpp"
@@ -51,8 +51,11 @@ target_link_libraries(my_app PRIVATE betools::betools)
 
 ## 依赖要求
 
-- 需要支持 C++23 的编译器（GCC ≥ 14 / Clang ≥ 18 / MSVC ≥ 2022 17.0）
-- 暂时无第三方库依赖
+- 无第三方库依赖
+- 各工具均为 header-only，按需引入时的最低语言标准各不相同：
+  - `base62.hpp`、`base64.hpp`、`config.hpp`、`singleton.hpp`、`lock_based_queue.hpp`：C++11 及以上
+  - `threadpool.hpp`：C++20 及以上（依赖 `betools/lock_based_queue.hpp`，复制时应当一并复制）
+- 构建测试与示例需要 CMake ≥ 3.21 与支持 C++20 的编译器（项目未强制指定语言标准，建议通过 `-DCMAKE_CXX_STANDARD=20` 显式指定）
 
 ### 可选依赖
 

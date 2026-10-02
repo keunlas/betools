@@ -1,10 +1,10 @@
 # 基于锁的原子队列
 
-`betools/lock_based_queue.hpp` 是 `betools` 项目中提供线程安全有界阻塞队列的纯头文件。该文件是 self-contained 的，不依赖任何第三方库，可直接复制到任意项目中使用。队列基于 `std::mutex` 和 `std::condition_variable` 实现，支持单元素入队/出队、原地构造（emplace）以及批量入队（range）。
+`betools/lock_based_queue.hpp` 是 `betools` 项目中提供线程安全有界阻塞队列的纯头文件。该文件是 self-contained 的，兼容 C++11 及以上标准，不依赖任何第三方库，可直接复制到任意项目中使用。队列基于 `std::mutex` 和 `std::condition_variable` 实现，支持单元素入队/出队、原地构造（emplace）以及批量入队（range）。
 
 ## 概述
 
-`LockBasedQueue<T>` 是一个有界阻塞队列，构造时指定最大容量。所有入队/出队接口均提供三个层次：
+`LockBasedQueue<T>` 是一个先进先出（FIFO）的有界阻塞队列，内部使用 `std::deque<T>` 存储元素，构造时指定最大容量。所有入队/出队接口均提供三个层次：
 
 | 层次 | 命名 | 行为 |
 |------|------|------|
@@ -13,6 +13,8 @@
 | 限时等待 | `TryEnqueueFor` / `TryEmplaceFor` / `TryEnqueueRangeFor` / `TryDequeueFor` | 等待一段超时时间后返回结果 |
 
 所有接口均保证 **线程安全**。拷贝和移动操作均被显式禁止（`= delete`），请通过指针或引用传递队列实例。
+
+单元素接口兼容 C++11 及以上标准；批量入队接口在 C++20 及以上标准下使用 `std::ranges::sized_range` 约束，在更早的标准下退化为普通模板实现（详见下文）。
 
 ---
 
@@ -178,7 +180,13 @@ q.Emplace(2, "two");
 
 ## 批量入队
 
-批量入队接口使用 `std::ranges::copy` 搭配 `std::back_inserter` 一次性将整个范围入队到内部的 `std::deque` 容器中。遵循 **全有或全无（all-or-nothing）** 原则——要么所有元素全部入队，要么都不入队。只要范围满足 `std::ranges::sized_range` 约束（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
+批量入队接口一次性将整个范围追加到内部的 `std::deque` 容器中，并遵循 **全有或全无（all-or-nothing）** 原则——要么所有元素全部入队，要么都不入队。只要范围可求长度（如 `std::vector`、`std::array`、`std::span` 等），即可使用。
+
+- 在 C++20 及以上标准下，范围类型需满足 `std::ranges::sized_range`，且元素类型可转换为 `T`；
+- 在更早的标准下，接口退化为普通模板，通过 `std::begin` / `std::end` / `std::distance` 求长度；
+- 内部追加优先使用 C++23 的 `std::deque::append_range`，不可用时回退到 `std::ranges::copy`（C++20）或 `std::copy` + `std::back_inserter`（C++11）。
+
+空范围的处理：`EnqueueRange` 直接返回；`TryEnqueueRange` / `TryEnqueueRangeFor` 直接返回 `true`。
 
 ### EnqueueRange
 
@@ -331,3 +339,13 @@ int main() {
   return 0;
 }
 ```
+
+---
+
+## 注意事项
+
+- **容量必须大于 0** : 容量为 0 时队列始终处于“已满”状态，阻塞入队会永久等待，尝试入队总是失败。
+- **阻塞接口可能永久等待** : `Enqueue` / `Emplace` / `EnqueueRange` 在队列满时等待，`Dequeue` 在队列空时等待；若没有对应的生产/消费行为，调用会一直阻塞，超时场景请使用 `Try*For` 系列接口。
+- **`T` 的移动语义** : 出队通过移动赋值写入传出参数，批量入队通过 `std::back_inserter` 拷贝或移动元素，因此 `T` 需要满足相应的构造/赋值要求。
+- **批量接口的原子性** : 入队要么全部成功，要么一个都不入队，不存在“部分入队”的中间状态。
+- **查询接口加锁** : `QueueEmpty()` / `QueueFull()` / `QueueSize()` 内部都会加锁，返回的是查询瞬间的快照，多线程场景下不能作为后续操作的依据。

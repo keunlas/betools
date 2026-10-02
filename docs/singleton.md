@@ -33,7 +33,8 @@ static T& Instance(Args&&... args);
 获取 `T` 的全局唯一实例。
 
 - **首次调用** : 以 `args...` 完美转发构造 `T` 并返回其引用。
-- **后续调用** : 忽略传入参数，直接返回已构造的同一实例。
+- **后续调用** : 以**相同的实参类型列表**再次调用时，忽略传入的实参值，直接返回已构造的同一实例。
+- **实例化规则** : `Instance` 是变参模板，不同的实参类型列表是**不同的函数实例化**，各自持有独立的 `static` 实例。实参类型列表不同（例如 `Instance("hello")` 与 `Instance(std::string("hello"))`）会得到不同的单例。
 - **异常安全** : 若首次构造时抛出异常，static 变量视为未初始化，下一次调用将重新尝试构造。
 
 ### 拷贝与移动
@@ -50,13 +51,17 @@ static T& Instance(Args&&... args);
 #include "betools/singleton.hpp"
 
 // 首次调用，传入配置文件路径
-auto& cfg = betools::Singleton<betools::Config>::Instance("app.conf");
+auto& cfg =
+    betools::Singleton<betools::Config>::Instance(std::string("app.conf"));
 std::string val = cfg.GetValue("server.host");
 
-// 后续调用无需再传参（传了也被忽略，返回同一实例）
-auto& same = betools::Singleton<betools::Config>::Instance();
-// &cfg == &same  →  true
+// 以相同类型再次调用：实参值被忽略，返回同一实例
+auto& same =
+    betools::Singleton<betools::Config>::Instance(std::string("other.conf"));
+// &cfg == &same  →  true，且 cfg 仍然由 "app.conf" 构造
 ```
+
+注意：不能通过不再传参的 `Instance()` 获取上面的实例，零参调用是另一个独立的函数实例化（并且要求 `T` 可以默认构造，而 `Config` 没有默认构造函数）。
 
 ### 默认构造的类型
 
@@ -71,6 +76,28 @@ auto& logger = betools::Singleton<MyLogger>::Instance();
 logger.Log("hello");
 ```
 
+### 参数类型一致性
+
+同一个 `Singleton<T, Tag>` 只有在**实参类型列表完全一致**时才会命中同一个实例，实参的值不同不影响结果：
+
+```cpp
+struct MyTool {
+  explicit MyTool(const std::string& name) : name_(name) {}
+  std::string name_;
+};
+
+// 同一个实例：两次调用的实参类型都是 std::string
+auto& a = betools::Singleton<MyTool>::Instance(std::string("first"));
+auto& b = betools::Singleton<MyTool>::Instance(std::string("second"));
+// &a == &b  →  true，a.name_ == "first"
+
+// 不同实例：实参类型不同（const char* 与 std::string）
+auto& c = betools::Singleton<MyTool>::Instance("third");
+// &c != &a  →  true，这是另一个单例
+```
+
+该错误在编译期不会报错，只会静默产生多个实例，使用时应始终统一实参类型。
+
 ---
 
 ## 多实例：Tag 模板参数
@@ -78,6 +105,7 @@ logger.Log("hello");
 当需要同一类型 `T` 的多个独立单例时，可通过第二个模板参数 `Tag` 来区分：
 
 ```cpp
+#include "betools/config.hpp"
 #include "betools/singleton.hpp"
 
 // 定义不同的 Tag 类型（空结构体即可）
@@ -85,9 +113,12 @@ struct AppCfg {};
 struct DbCfg {};
 
 // 三个完全独立的 Config 单例，互不影响
-auto& appCfg = betools::Singleton<betools::Config, AppCfg>::Instance("app.conf");
-auto& dbCfg  = betools::Singleton<betools::Config, DbCfg>::Instance("db.conf");
-auto& defCfg = betools::Singleton<betools::Config>::Instance("default.conf");
+auto& appCfg =
+    betools::Singleton<betools::Config, AppCfg>::Instance(std::string("app.conf"));
+auto& dbCfg =
+    betools::Singleton<betools::Config, DbCfg>::Instance(std::string("db.conf"));
+auto& defCfg =
+    betools::Singleton<betools::Config>::Instance(std::string("default.conf"));
 
 // appCfg、dbCfg、defCfg 是三个不同的对象，地址各不相同
 ```
@@ -102,8 +133,8 @@ auto& defCfg = betools::Singleton<betools::Config>::Instance("default.conf");
 
 | 场景 | 推荐方案 |
 |------|----------|
-| 全局唯一配置 | `Singleton<Config>::Instance("app.conf")` |
-| 多个配置文件 | `Singleton<Config, AppTag>::Instance("a.conf")` + `Singleton<Config, DbTag>::Instance("b.conf")` |
+| 全局唯一配置 | `Singleton<Config>::Instance(std::string("app.conf"))` |
+| 多个配置文件 | `Singleton<Config, AppTag>::Instance(std::string("a.conf"))` + `Singleton<Config, DbTag>::Instance(std::string("b.conf"))` |
 | 日志器等工具类 | `Singleton<MyLogger>::Instance()` |
 | 需要手动控制销毁顺序 | 考虑基于 `std::unique_ptr` + `Init/Destroy` 的变体方案 |
 
